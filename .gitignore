@@ -1,0 +1,38 @@
+# 📦 Dependencies
+node_modules/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# 🏗️ Build Outputs
+dist/
+build/
+out/
+frontend/dist/
+dist-ssr/
+
+# ☁️ Cloudflare & Secrets
+.wrangler/
+.dev.vars
+.dev.vars.*
+.env
+.env.*
+!.env.example
+!.dev.vars.example
+
+# 🗄️ Database & File Eksekusi Berat
+*.sqlite
+*.sqlite3
+*.db
+*.sql
+*.csv
+*.epub
+*.zip
+*.tar.gz
+alkitab/
+
+# 💻 Editor & OS Files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

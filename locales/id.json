@@ -1,0 +1,16 @@
+{
+  "welcome": "Selamat datang di Alkitab ID! 📖\n\nSilakan tekan tombol di bawah ini untuk membaca Alkitab.",
+  "open_webapp": "Buka Alkitab",
+  "language_changed": "Bahasa berhasil diubah ke Bahasa Indonesia.",
+  "admin_welcome": "Panel Admin aktif. Silakan pilih menu di bawah:",
+  "admin_btn_daily_verse": "Ubah Ayat Hari Ini",
+  "admin_btn_community": "Manajemen Komunitas",
+  "admin_btn_channels": "Rekomendasi Channel",
+  "admin_btn_news": "Berita & Artikel",
+  "admin_btn_close": "Tutup Panel Admin",
+  "admin_closed": "Panel Admin ditutup.",
+  "admin_prompt_verse": "Silakan kirim ayat hari ini dengan format:\n\n`Teks Ayat | Referensi`\nContoh: `Pada mulanya Allah... | Kejadian 1:1`",
+  "admin_success": "Data berhasil diperbarui!",
+  "error_general": "Terjadi kesalahan sistem. Silakan coba lagi nanti.",
+  "unauthorized": "Anda tidak memiliki akses admin."
+}

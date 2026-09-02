@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Alkitab ID - @bibleonbot</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] },
+                    colors: { brand: { 50: '#f6f7f9', 100: '#eceef2', 900: '#1a1d23' } }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #e5e7eb; display: flex; justify-content: center; align-items: center; height: 100vh; height: 100dvh; margin: 0; overflow: hidden; }
+        #app-container { width: 100%; height: 100%; background-color: #fafafa; position: relative; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); display: flex; flex-direction: column; overflow: hidden; }
+        @media (min-width: 640px) { #app-container { max-width: 400px; height: 90vh; max-height: 850px; border-radius: 1.5rem; } }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .tab-content { display: none; animation: fadeIn 0.3s ease-in-out; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .verse-item { transition: all 0.2s ease; -webkit-user-select: none; user-select: none; }
+        .verse-item.selected { background-color: #f3f4f6; border-left: 3px solid #1a1d23; transform: scale(0.99); }
+        .verse-highlight-yellow { background-color: #fef08a !important; border-radius: 0.5rem; }
+        .verse-highlight-blue { background-color: #bfdbfe !important; border-radius: 0.5rem; }
+        #verse-actions { transform: translateY(150%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); bottom: 5.5rem; visibility: hidden; }
+        #verse-actions.show { transform: translateY(0); visibility: visible; }
+        .bottom-nav { box-shadow: 0 10px 40px -10px rgba(0,0,0,0.15); }
+    </style>
+</head>
+<body class="text-gray-900">
+    <div id="app-container">
+        <header class="px-5 pt-12 pb-4 bg-[#fafafa]/90 backdrop-blur-md z-30 sticky top-0 border-b border-gray-100 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <img src="https://i.ibb.co/0VytPmL7/31399-removebg-preview.png" alt="Alkitab ID Logo" class="w-8 h-8 object-contain">
+                <h1 class="font-bold text-lg tracking-tight">Alkitab ID</h1>
+            </div>
+            <button class="p-2 bg-white rounded-full hover:bg-gray-100 shadow-sm border border-gray-100 transition">
+                <i class="ph ph-bell text-lg"></i>
+            </button>
+        </header>
+
+        <main class="flex-1 overflow-y-auto no-scrollbar pb-32 px-4 pt-4" id="main-content">
+            <div id="tab-home" class="tab-content active space-y-7">
+                <div class="relative bg-gray-900 text-white rounded-3xl p-6 overflow-hidden shadow-sm">
+                    <div class="absolute -right-10 -top-10 w-40 h-40 bg-white opacity-5 rounded-full blur-2xl"></div>
+                    <div class="absolute right-10 bottom-0 w-24 h-24 bg-white opacity-5 rounded-full blur-xl"></div>
+                    <div class="relative z-10">
+                        <div class="flex justify-between items-center mb-4">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-gray-300">Ayat Hari Ini</span>
+                            <i class="ph-fill ph-sparkle text-yellow-400"></i>
+                        </div>
+                        <p id="daily-verse-text" class="text-xl font-medium leading-relaxed mb-3">Memuat ayat...</p>
+                        <p id="daily-verse-ref" class="text-sm text-gray-400 font-semibold"></p>
+                    </div>
+                </div>
+
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between px-1">
+                        <h3 class="font-bold text-lg tracking-tight">Komunitas</h3>
+                        <span class="text-[10px] font-extrabold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-1 rounded-md border border-blue-100">Disarankan</span>
+                    </div>
+                    <div id="community-list" class="grid grid-cols-1 gap-3"></div>
+                </div>
+
+                <div class="space-y-3">
+                    <h3 class="font-bold text-lg tracking-tight px-1">Rekomendasi Channel</h3>
+                    <div id="channel-list" class="flex gap-3 overflow-x-auto no-scrollbar pb-1"></div>
+                </div>
+
+                <div class="pb-4 space-y-4">
+                    <div class="flex items-center justify-between px-1">
+                        <h3 class="font-bold text-lg tracking-tight">Berita & Artikel</h3>
+                        <button class="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50">
+                            <i class="ph-bold ph-newspaper text-sm"></i>
+                        </button>
+                    </div>
+                    <div id="news-list" class="space-y-4"></div>
+                </div>
+            </div>
+
+            <div id="tab-bible" class="tab-content relative min-h-[70vh]">
+                <div class="flex gap-2 overflow-x-auto no-scrollbar pb-3 mb-2 sticky top-0 z-20 bg-[#fafafa]/95 backdrop-blur-sm pt-2">
+                    <button class="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-full shadow-sm whitespace-nowrap text-[13px] font-bold active:scale-95 transition">
+                        <span>Kejadian 1</span>
+                        <i class="ph-bold ph-caret-down text-gray-400"></i>
+                    </button>
+                    <button class="flex items-center gap-2 px-4 py-2 bg-white text-gray-800 border border-gray-200 rounded-full shadow-sm whitespace-nowrap text-[13px] font-bold active:scale-95 transition">
+                        <span>TB (Baru)</span>
+                        <i class="ph-bold ph-caret-down text-gray-400"></i>
+                    </button>
+                    <button class="flex items-center justify-center w-10 h-10 bg-white text-gray-700 border border-gray-200 rounded-full shadow-sm shrink-0 active:scale-95 transition">
+                        <i class="ph-bold ph-faders text-base"></i>
+                    </button>
+                </div>
+                <div class="relative mb-5 group">
+                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <i class="ph-bold ph-magnifying-glass text-gray-400 group-focus-within:text-gray-900 transition"></i>
+                    </div>
+                    <input type="text" placeholder="Cari kitab, ayat, atau kata kunci..." class="w-full bg-white border border-gray-200 rounded-2xl py-3.5 pl-11 pr-4 text-[13px] font-medium text-gray-800 placeholder-gray-400 focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition shadow-sm">
+                </div>
+                <div class="space-y-1.5 pb-10" id="verse-container"></div>
+            </div>
+
+            <div id="tab-saved" class="tab-content space-y-6">
+                <div class="flex justify-between items-end mb-6 px-1">
+                    <div>
+                        <h2 class="font-bold text-2xl tracking-tight text-gray-900">Tersimpan</h2>
+                        <p class="text-[13px] text-gray-500 font-medium mt-1">Koleksi ayat & catatan Anda</p>
+                    </div>
+                    <div class="w-10 h-10 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-900 font-bold text-sm shadow-sm" id="saved-count">0</div>
+                </div>
+                <div id="saved-list"></div>
+            </div>
+        </main>
+
+        <div id="verse-actions" class="absolute left-6 right-6 bg-gray-900/95 backdrop-blur-md text-white rounded-[1.25rem] shadow-2xl p-2.5 flex justify-between items-center z-40 border border-gray-700/50">
+            <button onclick="mockAction('Warna ditambahkan!')" class="flex flex-col items-center justify-center gap-1.5 w-14 h-12 hover:bg-gray-800 rounded-xl transition">
+                <div class="w-4 h-4 rounded-full bg-yellow-400 shadow-inner"></div>
+                <span class="text-[9px] font-bold uppercase tracking-wider">Warna</span>
+            </button>
+            <button onclick="mockAction('Label ditambahkan')" class="flex flex-col items-center justify-center gap-1 w-14 h-12 hover:bg-gray-800 rounded-xl transition">
+                <i class="ph-bold ph-tag text-lg"></i>
+                <span class="text-[9px] font-bold uppercase tracking-wider">Label</span>
+            </button>
+            <button onclick="mockAction('Membuka catatan')" class="flex flex-col items-center justify-center gap-1 w-14 h-12 hover:bg-gray-800 rounded-xl transition">
+                <i class="ph-bold ph-pencil-simple text-lg"></i>
+                <span class="text-[9px] font-bold uppercase tracking-wider">Catat</span>
+            </button>
+            <button onclick="mockAction('Bandingkan versi...')" class="flex flex-col items-center justify-center gap-1 w-14 h-12 hover:bg-gray-800 rounded-xl transition">
+                <i class="ph-bold ph-arrows-left-right text-lg"></i>
+                <span class="text-[9px] font-bold uppercase tracking-wider">Banding</span>
+            </button>
+            <div class="w-[1px] h-8 bg-gray-700 mx-1"></div>
+            <button onclick="mockAction('Tautan disalin!')" class="flex flex-col items-center justify-center gap-1 w-14 h-12 hover:bg-gray-800 rounded-xl transition text-blue-400">
+                <i class="ph-bold ph-share-network text-lg"></i>
+                <span class="text-[9px] font-bold uppercase tracking-wider">Share</span>
+            </button>
+        </div>
+
+        <nav class="bottom-nav absolute bottom-6 left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur-xl border border-gray-100 rounded-[2rem] px-5 py-3 flex justify-center gap-6 items-center z-50 w-max">
+            <button onclick="switchTab('home')" class="nav-btn flex flex-col items-center gap-1 text-gray-900 transition w-12" data-target="home">
+                <i class="ph-fill ph-house text-2xl"></i>
+                <span class="text-[9px] font-extrabold tracking-wider uppercase">Home</span>
+            </button>
+            <button onclick="switchTab('bible')" class="nav-btn flex flex-col items-center gap-1 text-gray-400 hover:text-gray-900 transition w-12" data-target="bible">
+                <i class="ph ph-book-open-text text-2xl"></i>
+                <span class="text-[9px] font-extrabold tracking-wider uppercase">Alkitab</span>
+            </button>
+            <button onclick="switchTab('saved')" class="nav-btn flex flex-col items-center gap-1 text-gray-400 hover:text-gray-900 transition w-12" data-target="saved">
+                <i class="ph ph-bookmark-simple text-2xl"></i>
+                <span class="text-[9px] font-extrabold tracking-wider uppercase">Simpan</span>
+            </button>
+        </nav>
+
+        <div id="custom-toast" class="absolute top-6 left-1/2 -translate-x-1/2 bg-gray-900/90 backdrop-blur-md text-white px-4 py-2.5 rounded-2xl text-[12px] font-semibold shadow-xl opacity-0 pointer-events-none transition-all duration-300 z-[70] flex items-center gap-2 transform -translate-y-6 w-max border border-gray-700/50">
+            <i class="ph-fill ph-check-circle text-green-400 text-sm"></i>
+            <span id="toast-msg">Sukses</span>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'https://bibleonbot-backend-staging.rchtxtdev.workers.dev/api';
+        
+        try {
+            if (window.Telegram && window.Telegram.WebApp) {
+                window.Telegram.WebApp.ready();
+                window.Telegram.WebApp.expand();
+            }
+        } catch (e) {
+            console.warn("Bukan di dalam Telegram:", e);
+        }
+
+        let selectedElements = new Set();
+        let pressTimer;
+        let toastTimeout;
+
+        async function fetchHomeData() {
+            try {
+                const response = await fetch(`${API_URL}/home`);
+                if (!response.ok) throw new Error('API Error');
+                
+                const data = await response.json();
+                
+                if (data.dailyVerse) {
+                    document.getElementById('daily-verse-text').textContent = data.dailyVerse.verse_text;
+                    document.getElementById('daily-verse-ref').textContent = `- ${data.dailyVerse.verse_reference}`;
+                }
+
+                const commList = document.getElementById('community-list');
+                commList.innerHTML = '';
+                if (data.communities && data.communities.length > 0) {
+                    data.communities.forEach(c => {
+                        commList.innerHTML += `
+                            <div class="flex items-center justify-between p-3.5 bg-white rounded-2xl border border-gray-100 shadow-sm hover:border-gray-200 transition">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center text-blue-500 shrink-0">
+                                        <i class="ph-fill ph-users-three text-lg"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-bold text-sm text-gray-900">${c.name}</h4>
+                                        <p class="text-[11px] text-gray-500 font-medium">${c.member_count} • ${c.category}</p>
+                                    </div>
+                                </div>
+                                <button onclick="window.open('${c.link}', '_blank')" class="px-4 py-1.5 bg-gray-900 text-white text-xs font-bold rounded-xl hover:bg-gray-800 transition shadow-sm">Gabung</button>
+                            </div>
+                        `;
+                    });
+                } else {
+                    commList.innerHTML = '<p class="text-xs text-gray-500 text-center py-2">Belum ada komunitas</p>';
+                }
+
+                const chanList = document.getElementById('channel-list');
+                chanList.innerHTML = '';
+                if (data.channels && data.channels.length > 0) {
+                    data.channels.forEach(ch => {
+                        chanList.innerHTML += `
+                            <div class="flex-none w-[180px] p-3.5 bg-white rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden group">
+                                <h4 class="text-sm font-bold text-gray-900 leading-tight relative z-10">${ch.name}</h4>
+                                <p class="text-[11px] text-gray-500 mb-4 mt-1 line-clamp-2 relative z-10">${ch.description}</p>
+                                <button onclick="window.open('${ch.link}', '_blank')" class="w-full py-2 bg-gray-50 hover:bg-gray-100 text-gray-800 text-[11px] font-bold uppercase tracking-wider rounded-xl border border-gray-200 transition relative z-10">Buka</button>
+                            </div>
+                        `;
+                    });
+                } else {
+                    chanList.innerHTML = '<p class="text-xs text-gray-500">Belum ada channel</p>';
+                }
+
+                const newsList = document.getElementById('news-list');
+                newsList.innerHTML = '';
+                if (data.news && data.news.length > 0) {
+                    data.news.forEach(n => {
+                        newsList.innerHTML += `
+                            <div onclick="window.open('${n.link}', '_blank')" class="flex gap-4 items-center bg-white p-2.5 rounded-2xl border border-gray-100 shadow-sm cursor-pointer hover:border-gray-300 transition group">
+                                <img src="${n.image_url}" class="w-20 h-20 rounded-xl object-cover">
+                                <div class="flex-1 py-1 pr-2">
+                                    <span class="text-[9px] font-extrabold uppercase tracking-widest text-blue-600 mb-1.5 block">${n.category}</span>
+                                    <h4 class="font-bold text-[13px] leading-tight text-gray-900 line-clamp-2 mb-1.5 group-hover:text-blue-600 transition">${n.title}</h4>
+                                </div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    newsList.innerHTML = '<p class="text-xs text-gray-500 text-center py-2">Belum ada berita</p>';
+                }
+
+            } catch (error) {
+                console.error('Fetch Data Error:', error);
+            }
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('text-gray-900');
+                btn.classList.add('text-gray-400');
+                const icon = btn.querySelector('i');
+                icon.className = icon.className.replace('ph-fill', 'ph');
+            });
+            const activeBtn = document.querySelector(`.nav-btn[data-target="${tabId}"]`);
+            activeBtn.classList.remove('text-gray-400');
+            activeBtn.classList.add('text-gray-900');
+            const activeIcon = activeBtn.querySelector('i');
+            activeIcon.className = activeIcon.className.replace('ph ', 'ph-fill ');
+            clearSelections();
+            document.getElementById('main-content').scrollTop = 0;
+            if (tabId === 'home') fetchHomeData();
+        }
+
+        function handleVerseSelect(element) {
+            if (element.classList.contains('selected')) {
+                element.classList.remove('selected');
+                selectedElements.delete(element);
+            } else {
+                element.classList.add('selected');
+                selectedElements.add(element);
+            }
+            const actionMenu = document.getElementById('verse-actions');
+            if (selectedElements.size > 0) actionMenu.classList.add('show');
+            else actionMenu.classList.remove('show');
+        }
+
+        function clearSelections() {
+            selectedElements.clear();
+            document.querySelectorAll('.verse-item').forEach(el => el.classList.remove('selected'));
+            document.getElementById('verse-actions').classList.remove('show');
+        }
+
+        document.getElementById('main-content').addEventListener('click', (e) => {
+            if (!e.target.closest('.verse-item') && selectedElements.size > 0) clearSelections();
+        });
+
+        function mockAction(message) {
+            if (message.includes('Warna')) {
+                selectedElements.forEach(el => el.classList.add('verse-highlight-yellow'));
+            }
+            const toast = document.getElementById('custom-toast');
+            document.getElementById('toast-msg').textContent = message;
+            toast.classList.remove('opacity-0', '-translate-y-6');
+            toast.classList.add('opacity-100', 'translate-y-0');
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.classList.remove('opacity-100', 'translate-y-0');
+                toast.classList.add('opacity-0', '-translate-y-6');
+            }, 2000);
+            clearSelections();
+        }
+
+        // Jalankan tab home setelah HTML selesai dimuat
+        document.addEventListener('DOMContentLoaded', () => {
+            switchTab('home');
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,205 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+/* 1. Penguncian Layar Mutlak (Anti Mengecil/Membesar) */
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh; /* Ini adalah rahasia agar layar stabil di HP modern */
+  overflow: hidden; /* Mengunci layar utama agar   tidak bisa ditarik/mantul */
+  background-color: #e5e7eb;
+  color: #111827;
+  color-scheme: light;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 2. Fondasi Aplikasi */
+#root {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #e5e7eb;
+  overflow: hidden;
+}
+
+#app-container {
+  width: 100%;
+  height: 100%;
+  background-color: #fafafa;
+  color: #111827;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 3. Tampilan Khusus PC/Tablet (Batas Maksimal) */
+@media (min-width: 640px) {
+  #app-container {
+    max-width: 420px;
+    height: 92vh;
+    max-height: 880px;
+    border-radius: 2rem;
+    box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+  }
+}
+
+/* 4. Area Konten yang BISA di-Scroll (Lancar di iOS & Android) */
+.scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch; /* Membuat scroll sangat halus dan tidak ngelag */
+}
+
+/* Menyembunyikan tampilan scrollbar bawaan */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+@keyframes sheetSlideUp {
+  0% {
+    transform: translate3d(0, 100%, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes sheetSlideDown {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(0, 100%, 0);
+  }
+}
+
+@keyframes backdropFadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes backdropFadeOut {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.sheet-container {
+  overflow: hidden;
+  border-top-left-radius: 2rem;
+  border-top-right-radius: 2rem;
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  will-change: transform;
+}
+
+.sheet-enter {
+  animation: sheetSlideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.sheet-exit {
+  animation: sheetSlideDown 0.22s cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+.backdrop-enter {
+  animation: backdropFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.backdrop-exit {
+  animation: backdropFadeOut 0.2s ease-in forwards;
+}
+
+@keyframes verseSpotlight {
+  0% {
+    background-color: transparent;
+    transform: scale(1);
+  }
+  50% {
+    background-color: rgba(16, 185, 129, 0.32);
+    transform: scale(1.015);
+  }
+  100% {
+    background-color: transparent;
+    transform: scale(1);
+  }
+}
+
+.verse-spotlight {
+  animation: verseSpotlight 0.6s ease-in-out 3;
+  border-radius: 0.75rem;
+  will-change: transform, background-color;
+}
+
+@keyframes itemFadeIn {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.animate-item-fade {
+  animation: itemFadeIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+@keyframes jiggle {
+  0%, 100% { transform: rotate(0deg) translate3d(0, 0, 0); }
+  25% { transform: rotate(-1.5deg) translate3d(0, -0.5px, 0); }
+  75% { transform: rotate(1.5deg) translate3d(0, 0.5px, 0); }
+}
+
+.animate-jiggle {
+  animation: jiggle 0.22s ease-in-out infinite;
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+@keyframes actionSlideIn {
+  0% {
+    opacity: 0;
+    transform: translate3d(8px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes actionSlideOut {
+  0% {
+    opacity: 0;
+    transform: translate3d(-8px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.action-view-enter {
+  animation: actionSlideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.action-view-back {
+  animation: actionSlideOut 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}

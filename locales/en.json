@@ -1,0 +1,16 @@
+{
+  "welcome": "Welcome to Bible ID! 📖\n\nPlease open the Web App below to read the Bible, view the verse of the day, and manage your saved verses.",
+  "open_webapp": "Open Bible",
+  "language_changed": "Language successfully changed to English.",
+  "admin_welcome": "Admin Panel active. Please select a menu below:",
+  "admin_btn_daily_verse": "Change Daily Verse",
+  "admin_btn_community": "Community Management",
+  "admin_btn_channels": "Channel Recommendations",
+  "admin_btn_news": "News & Articles",
+  "admin_btn_close": "Close Admin Panel",
+  "admin_closed": "Admin Panel closed.",
+  "admin_prompt_verse": "Please send the daily verse in this format:\n\n`Verse Text | Reference`\nExample: `In the beginning God... | Genesis 1:1`",
+  "admin_success": "Data updated successfully!",
+  "error_general": "A system error occurred. Please try again later.",
+  "unauthorized": "You do not have admin access."
+}

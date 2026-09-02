@@ -11,19 +11,43 @@ html.dark {
 }
 
 html, body {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
   margin: 0;
   padding: 0;
-  width: 100%;
-  height: 100vh;
-  height: 100dvh;
   overflow: hidden;
-  background-color: #e5e7eb;
+  background-color: #fafafa;
   color: #111827;
   color-scheme: light;
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
+}
+
+html.dark, html.dark body {
+  background-color: #17211C;
+  color: #E3ECE6;
+  color-scheme: dark;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #fafafa;
+  overflow: hidden;
+}
+
+html.dark #root {
+  background-color: #17211C;
 }
 
 * {
@@ -36,26 +60,13 @@ input, textarea {
   -webkit-touch-callout: default;
   -webkit-user-select: text;
   user-select: text;
+  background-color: transparent;
 }
 
-html.dark body {
-  background-color: #131A16;
+html.dark input,
+html.dark textarea {
   color: #E3ECE6;
-  color-scheme: dark;
-}
-
-#root {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background-color: #e5e7eb;
-  overflow: hidden;
-}
-
-html.dark #root {
-  background-color: #131A16;
+  background-color: transparent;
 }
 
 #app-container {
@@ -108,12 +119,15 @@ html.dark #root {
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: bounce;
-  will-change: transform;
+  overscroll-behavior-y: contain;
 }
 
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+.verse-item {
+  contain: content;
+}
 
 @keyframes tabContentEnter {
   0% {
@@ -132,21 +146,39 @@ html.dark #root {
 }
 
 @keyframes sheetSlideUp {
-  0% {
-    transform: translate3d(0, 100%, 0);
-  }
-  100% {
-    transform: translate3d(0, 0, 0);
-  }
+  0% { transform: translate3d(0, 100%, 0); }
+  100% { transform: translate3d(0, 0, 0); }
 }
 
 @keyframes sheetSlideDown {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(0, 100%, 0); }
+}
+
+@keyframes bookItemPop {
   0% {
-    transform: translate3d(0, 0, 0);
+    opacity: 0;
+    transform: scale(0.95) translate3d(0, 4px, 0);
   }
   100% {
-    transform: translate3d(0, 100%, 0);
+    opacity: 1;
+    transform: scale(1) translate3d(0, 0, 0);
   }
+}
+
+.sheet-enter {
+  animation: sheetSlideUp 0.34s cubic-bezier(0.22, 1.15, 0.35, 1) forwards;
+  will-change: transform;
+}
+
+.sheet-exit {
+  animation: sheetSlideDown 0.22s cubic-bezier(0.32, 0, 0.67, 0) forwards;
+  will-change: transform;
+}
+
+.animate-book-item {
+  animation: bookItemPop 0.18s cubic-bezier(0.22, 1.12, 0.36, 1) forwards;
+  will-change: transform, opacity;
 }
 
 @keyframes backdropFadeIn {
@@ -168,14 +200,6 @@ html.dark #root {
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   will-change: transform;
-}
-
-.sheet-enter {
-  animation: sheetSlideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.sheet-exit {
-  animation: sheetSlideDown 0.22s cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 
 .backdrop-enter {

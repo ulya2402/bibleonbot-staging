@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export default function HomeTab({ dailyVerse, communities, channels, news, userName, isAdmin, setActiveTab, isDark, toggleTheme }: any) {
+export default function HomeTab({ dailyVerse, communities, channels, news, userName, isAdmin, setActiveTab, isDark, toggleTheme, isLoadingHome }: any) {
   const [visibleComms, setVisibleComms] = useState(5);
   const [visibleNews, setVisibleNews] = useState(5);
 
@@ -70,22 +70,68 @@ export default function HomeTab({ dailyVerse, communities, channels, news, userN
         </div>
       </div>
 
-      <div className="relative bg-gradient-to-br from-gray-900 to-gray-800 dark:from-transparent dark:to-transparent dark:bg-[#1E2A23] text-white rounded-[1.5rem] p-6 overflow-hidden shadow-lg mt-4 border border-transparent dark:border-[#2E3F34]">
-        <div className="absolute -right-10 -top-10 w-40 h-40 bg-white opacity-5 rounded-full blur-2xl dark:hidden"></div>
-        <div className="absolute right-10 bottom-0 w-24 h-24 bg-white opacity-5 rounded-full blur-xl dark:hidden"></div>
-        <div className="relative z-10">
-          <div className="flex justify-between items-center mb-4">
-            <span className="text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-[#8D9F94]">Ayat Hari Ini</span>
-            <i className="ph-fill ph-sparkle text-yellow-400 dark:text-[#74C69D] text-lg"></i>
+      {isLoadingHome ? (
+        <div className="space-y-8 animate-pulse">
+          <div className="h-44 bg-gray-200 dark:bg-[#1E2A23] rounded-[1.5rem] p-6 flex flex-col justify-between border border-transparent dark:border-[#2E3F34]">
+            <div className="flex justify-between items-center">
+              <div className="w-24 h-3 bg-gray-300 dark:bg-[#2A3B31] rounded-md"></div>
+              <div className="w-5 h-5 bg-gray-300 dark:bg-[#2A3B31] rounded-full"></div>
+            </div>
+            <div className="space-y-2.5">
+              <div className="w-full h-4 bg-gray-300 dark:bg-[#2A3B31] rounded-md"></div>
+              <div className="w-4/5 h-4 bg-gray-300 dark:bg-[#2A3B31] rounded-md"></div>
+            </div>
+            <div className="w-32 h-3 bg-gray-300 dark:bg-[#2A3B31] rounded-md"></div>
           </div>
-          <p className="text-lg font-medium leading-relaxed mb-3 text-white dark:text-[#E3ECE6]">
-            {dailyVerse ? dailyVerse.verse_text : 'Memuat ayat...'}
-          </p>
-          <p className="text-sm text-gray-400 dark:text-[#8D9F94] font-semibold">
-            {dailyVerse ? `- ${dailyVerse.verse_reference}` : ''}
-          </p>
+
+          <div className="space-y-3">
+            <div className="w-28 h-5 bg-gray-200 dark:bg-[#1E2A23] rounded-md px-1"></div>
+            <div className="space-y-2.5">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-16 bg-gray-200 dark:bg-[#1E2A23] rounded-2xl border border-transparent dark:border-[#2E3F34] flex items-center px-4 gap-3">
+                  <div className="w-10 h-10 rounded-full bg-gray-300 dark:bg-[#2A3B31] shrink-0"></div>
+                  <div className="flex-1 space-y-2">
+                    <div className="w-36 h-3.5 bg-gray-300 dark:bg-[#2A3B31] rounded-md"></div>
+                    <div className="w-24 h-2.5 bg-gray-300 dark:bg-[#2A3B31] rounded-md"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="w-44 h-5 bg-gray-200 dark:bg-[#1E2A23] rounded-md px-1"></div>
+            <div className="flex gap-3 overflow-hidden">
+              {[1, 2].map((i) => (
+                <div key={i} className="flex-none w-[180px] h-32 bg-gray-200 dark:bg-[#1E2A23] rounded-2xl border border-transparent dark:border-[#2E3F34] p-3.5 flex flex-col justify-between">
+                  <div className="w-16 h-3 bg-gray-300 dark:bg-[#2A3B31] rounded-md"></div>
+                  <div className="w-full h-3.5 bg-gray-300 dark:bg-[#2A3B31] rounded-md"></div>
+                  <div className="w-full h-7 bg-gray-300 dark:bg-[#2A3B31] rounded-xl"></div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-      </div>
+      ) : (
+        <>
+          <div className="relative bg-gradient-to-br from-gray-900 to-gray-800 dark:from-transparent dark:to-transparent dark:bg-[#1E2A23] text-white rounded-[1.5rem] p-6 overflow-hidden shadow-lg mt-4 border border-transparent dark:border-[#2E3F34]">
+            <div className="absolute -right-10 -top-10 w-40 h-40 bg-white opacity-5 rounded-full blur-2xl dark:hidden"></div>
+            <div className="absolute right-10 bottom-0 w-24 h-24 bg-white opacity-5 rounded-full blur-xl dark:hidden"></div>
+            <div className="relative z-10">
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-[#8D9F94]">Ayat Hari Ini</span>
+                <i className="ph-fill ph-sparkle text-yellow-400 dark:text-[#74C69D] text-lg"></i>
+              </div>
+              <p className="text-lg font-medium leading-relaxed mb-3 text-white dark:text-[#E3ECE6]">
+                {dailyVerse ? dailyVerse.verse_text : 'Belum diatur'}
+              </p>
+              <p className="text-sm text-gray-400 dark:text-[#8D9F94] font-semibold">
+                {dailyVerse ? `- ${dailyVerse.verse_reference}` : ''}
+              </p>
+            </div>
+          </div>
+        </>
+      )}
 
       <div className="space-y-3">
         <div className="flex items-center justify-between px-1">

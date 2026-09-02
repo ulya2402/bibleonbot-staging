@@ -88,9 +88,14 @@ export default function App() {
     } else {
       document.documentElement.classList.remove('dark');
     }
+    const targetColor = isDark ? '#17211C' : '#fafafa';
+    const metaTheme = document.querySelector('meta[name="theme-color"]');
+    if (metaTheme) metaTheme.setAttribute('content', targetColor);
+    const metaScheme = document.querySelector('meta[name="color-scheme"]');
+    if (metaScheme) metaScheme.setAttribute('content', isDark ? 'dark' : 'light');
+
     const tg = (window as any).Telegram?.WebApp;
     if (tg) {
-      const targetColor = isDark ? '#17211C' : '#fafafa';
       try { tg.setHeaderColor?.(targetColor); } catch (e) {}
       try { tg.setBackgroundColor?.(targetColor); } catch (e) {}
     }
@@ -109,6 +114,7 @@ export default function App() {
   const [channels, setChannels] = useState<any[]>([]);
   const [news, setNews] = useState<any[]>([]);
   const [savedVerses, setSavedVerses] = useState<any[]>([]);
+  const [isLoadingHome, setIsLoadingHome] = useState(true);
   
   const [currentBook, setCurrentBook] = useState(BIBLE_BOOKS[0]);
   const [currentChapter, setCurrentChapter] = useState(1);
@@ -121,9 +127,20 @@ export default function App() {
   const [isLoadingBible, setIsLoadingBible] = useState(false);
 
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
+  const [isSelectorClosing, setIsSelectorClosing] = useState(false);
   const [selectorStep, setSelectorStep] = useState<'book' | 'chapter' | 'version'>('book');
   const [tempSelectedBook, setTempSelectedBook] = useState(BIBLE_BOOKS[0]);
   const [searchQuery, setSearchQuery] = useState('');
+
+  const closeSelector = () => {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    setIsSelectorClosing(true);
+    setTimeout(() => {
+      setIsSelectorOpen(false);
+      setIsSelectorClosing(false);
+      setSearchQuery('');
+    }, 220);
+  };
   const [highlightedVerse, setHighlightedVerse] = useState<number | null>(null);
 
   const [isNoteSheetOpen, setIsNoteSheetOpen] = useState(false);
@@ -159,56 +176,18 @@ export default function App() {
     }
   });
   const [isNavVisible, setIsNavVisible] = useState(true);
+  const isNavVisibleRef = useRef(true);
   const lastScrollY = useRef(0);
+  const scrollRafId = useRef<number | null>(null);
   const mainRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    const el = mainRef.current;
-    if (!el) return;
-
-    let startY = 0;
-    let isPulling = false;
-
-    const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length !== 1) return;
-      startY = e.touches[0].clientY;
-      isPulling = true;
-      el.style.transition = 'none';
-    };
-
-    const onTouchMove = (e: TouchEvent) => {
-      if (!isPulling || e.touches.length !== 1) return;
-      const currentY = e.touches[0].clientY;
-      const deltaY = currentY - startY;
-
-      if (el.scrollTop <= 0 && deltaY > 0) {
-        const pull = Math.min(Math.pow(deltaY, 0.72) * 2.2, 75);
-        el.style.transform = `translate3d(0, ${pull}px, 0)`;
-      } else if (el.scrollTop + el.clientHeight >= el.scrollHeight - 1 && deltaY < 0) {
-        const pull = Math.max(-Math.pow(-deltaY, 0.72) * 2.2, -75);
-        el.style.transform = `translate3d(0, ${pull}px, 0)`;
+    return () => {
+      if (scrollRafId.current !== null) {
+        cancelAnimationFrame(scrollRafId.current);
       }
     };
-
-    const onTouchEnd = () => {
-      if (!isPulling) return;
-      isPulling = false;
-      el.style.transition = 'transform 0.38s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-      el.style.transform = 'translate3d(0, 0, 0)';
-    };
-
-    el.addEventListener('touchstart', onTouchStart, { passive: true });
-    el.addEventListener('touchmove', onTouchMove, { passive: true });
-    el.addEventListener('touchend', onTouchEnd, { passive: true });
-    el.addEventListener('touchcancel', onTouchEnd, { passive: true });
-
-    return () => {
-      el.removeEventListener('touchstart', onTouchStart);
-      el.removeEventListener('touchmove', onTouchMove);
-      el.removeEventListener('touchend', onTouchEnd);
-      el.removeEventListener('touchcancel', onTouchEnd);
-    };
-  }, [activeTab]);
+  }, []);
 
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const colorHoldTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -227,20 +206,33 @@ export default function App() {
 
   const handleMainScroll = (e: UIEvent<HTMLElement>) => {
     const currentScrollY = e.currentTarget.scrollTop;
-    const scrollDifference = currentScrollY - lastScrollY.current;
+    if (scrollRafId.current !== null) return;
 
-    if (currentScrollY <= 30) {
-      setIsNavVisible(true);
-    } else if (scrollDifference > 10 && currentScrollY > 70) {
-      setIsNavVisible(false);
-    } else if (scrollDifference < -10) {
-      setIsNavVisible(true);
-    }
-    lastScrollY.current = currentScrollY;
+    scrollRafId.current = requestAnimationFrame(() => {
+      const scrollDifference = currentScrollY - lastScrollY.current;
+      let nextNavState = isNavVisibleRef.current;
+
+      if (currentScrollY <= 30) {
+        nextNavState = true;
+      } else if (scrollDifference > 8 && currentScrollY > 60) {
+        nextNavState = false;
+      } else if (scrollDifference < -8) {
+        nextNavState = true;
+      }
+
+      if (nextNavState !== isNavVisibleRef.current) {
+        isNavVisibleRef.current = nextNavState;
+        setIsNavVisible(nextNavState);
+      }
+
+      lastScrollY.current = currentScrollY;
+      scrollRafId.current = null;
+    });
   };
 
   const fetchHomeData = async () => {
     try {
+      setIsLoadingHome(true);
       const resHome = await fetch(`${API_URL}/home?t=${new Date().getTime()}`);
       if (resHome.ok) {
         const data = await resHome.json();
@@ -251,6 +243,8 @@ export default function App() {
       }
     } catch (error) {
       console.error('Fetch Home Data Error:', error);
+    } finally {
+      setIsLoadingHome(false);
     }
   };
 
@@ -353,6 +347,9 @@ export default function App() {
   }, [userId, activeTab]);
 
   const closeNoteSheet = () => {
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
     setIsNoteSheetClosing(true);
     setTimeout(() => {
       setIsNoteSheetOpen(false);
@@ -378,7 +375,9 @@ export default function App() {
     const tg = (window as any).Telegram?.WebApp;
     if (!tg?.BackButton) return;
     const handleBack = () => {
-      if (isLabelSheetOpen) {
+      if (isSelectorOpen) {
+        closeSelector();
+      } else if (isLabelSheetOpen) {
         closeLabelSheet();
       } else if (isNoteSheetOpen) {
         closeNoteSheet();
@@ -388,7 +387,8 @@ export default function App() {
         setSelectedVerses([]);
       }
     };
-    if (isLabelSheetOpen || isNoteSheetOpen || isColorPaletteOpen || selectedVerses.length > 0) {
+
+    if (isSelectorOpen || isLabelSheetOpen || isNoteSheetOpen || isColorPaletteOpen || selectedVerses.length > 0) {
       tg.BackButton.show();
       tg.onEvent('backButtonClicked', handleBack);
     } else {
@@ -982,6 +982,7 @@ export default function App() {
             setActiveTab={setActiveTab}
             isDark={isDark}
             toggleTheme={toggleTheme}
+            isLoadingHome={isLoadingHome}
           />
         )}
         
@@ -1017,11 +1018,18 @@ export default function App() {
       </main>
 
       {isSelectorOpen && (
-        <div className="absolute inset-0 z-[100] flex flex-col justify-end">
-          <div className="absolute inset-0 bg-black/60 dark:bg-[#0E1511]/85 backdrop-blur-xs transition-opacity" onClick={() => setIsSelectorOpen(false)}></div>
+        <div className="fixed inset-0 z-[100] flex flex-col justify-end pointer-events-auto overflow-hidden">
+          <div 
+            className={`absolute inset-0 bg-black/40 dark:bg-black/60 transition-opacity ${
+              isSelectorClosing ? 'backdrop-exit' : 'backdrop-enter'
+            }`} 
+            onClick={closeSelector}
+          />
           
-          <div className="relative bg-white dark:bg-[#1E2A23] w-full max-w-[500px] mx-auto rounded-t-[1.5rem] h-[85vh] flex flex-col shadow-2xl animate-[fadeIn_0.25s_ease-out] border-t dark:border-[#2E3F34]">
-            <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-[#2E3F34] shrink-0 bg-white dark:bg-[#1E2A23] rounded-t-[1.5rem]">
+          <div className={`relative bg-white dark:bg-[#1E2A23] w-full max-w-[500px] mx-auto rounded-t-[1.75rem] h-[85vh] max-h-[85dvh] flex flex-col shadow-2xl border-t border-x border-gray-200 dark:border-[#2E3F34] overflow-hidden ${
+            isSelectorClosing ? 'sheet-exit' : 'sheet-enter'
+          }`}>
+            <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-[#2E3F34] shrink-0 bg-white dark:bg-[#1E2A23] rounded-t-[1.75rem]">
               {selectorStep === 'chapter' ? (
                 <button onClick={() => setSelectorStep('book')} className="p-2 -ml-2 text-gray-500 dark:text-[#8D9F94] hover:bg-gray-100 dark:hover:bg-[#27382F] rounded-full transition"><i className="ph-bold ph-arrow-left text-xl"></i></button>
               ) : (
@@ -1030,7 +1038,12 @@ export default function App() {
               <h3 className="font-extrabold text-lg text-gray-900 dark:text-[#E3ECE6]">
                 {selectorStep === 'book' ? 'Pilih Kitab' : selectorStep === 'version' ? 'Pilih Terjemahan' : `Pasal ${tempSelectedBook.name}`}
               </h3>
-              <button onClick={() => setIsSelectorOpen(false)} className="p-2 -mr-2 text-gray-500 dark:text-[#8D9F94] hover:bg-gray-100 dark:hover:bg-[#27382F] rounded-full transition"><i className="ph-bold ph-x text-xl"></i></button>
+              <button 
+                onClick={closeSelector} 
+                className="p-2 -mr-2 text-gray-500 dark:text-[#8D9F94] hover:bg-gray-100 dark:hover:bg-[#27382F] rounded-full transition"
+              >
+                <i className="ph-bold ph-x text-xl"></i>
+              </button>
             </div>
 
             {selectorStep === 'book' && (
@@ -1099,7 +1112,7 @@ export default function App() {
                           <button
                             key={book.id}
                             onClick={() => { setTempSelectedBook(book); setSelectorStep('chapter'); setSearchQuery(''); }}
-                            className={`p-3 rounded-xl text-left font-bold text-[13px] transition border ${
+                            className={`p-3 rounded-xl text-left font-bold text-[13px] transition-all duration-150 active:scale-95 border animate-book-item ${
                               currentBook.id === book.id 
                                 ? 'bg-[#1a1d23] dark:bg-[#26372D] text-white dark:text-[#74C69D] border-[#1a1d23] dark:border-[#74C69D] shadow-md' 
                                 : 'bg-white dark:bg-[#1E2A23] text-gray-700 dark:text-[#E3ECE6] border-gray-100 dark:border-[#2E3F34] hover:border-gray-300 dark:hover:border-[#3C5143]'
@@ -1120,7 +1133,7 @@ export default function App() {
                           <button 
                             key={book.id}
                             onClick={() => { setTempSelectedBook(book); setSelectorStep('chapter'); setSearchQuery(''); }}
-                            className={`p-3 rounded-xl text-left font-bold text-[13px] transition border ${
+                            className={`p-3 rounded-xl text-left font-bold text-[13px] transition-all duration-150 active:scale-95 border animate-book-item ${
                               currentBook.id === book.id 
                                 ? 'bg-[#1a1d23] dark:bg-[#26372D] text-white dark:text-[#74C69D] border-[#1a1d23] dark:border-[#74C69D] shadow-md' 
                                 : 'bg-white dark:bg-[#1E2A23] text-gray-700 dark:text-[#E3ECE6] border-gray-100 dark:border-[#2E3F34] hover:border-gray-300 dark:hover:border-[#3C5143]'
@@ -1157,15 +1170,15 @@ export default function App() {
       )}
 
       {isNoteSheetOpen && (
-        <div className="fixed inset-0 z-[110] flex flex-col justify-end pointer-events-auto">
+        <div className="fixed inset-0 z-[110] flex flex-col justify-end pointer-events-auto overflow-hidden">
           <div 
             onClick={closeNoteSheet}
-            className={`fixed inset-0 bg-black/45 transition-colors ${
+            className={`absolute inset-0 bg-black/40 dark:bg-black/60 transition-opacity ${
               isNoteSheetClosing ? 'backdrop-exit' : 'backdrop-enter'
             }`}
           />
           <div 
-            className={`sheet-container relative w-full max-w-[480px] mx-auto bg-[#f8f9fa] dark:bg-[#1E2A23] h-[75vh] max-h-[640px] flex flex-col shadow-[0_-12px_36px_rgba(0,0,0,0.15)] border-t border-x border-gray-200 dark:border-[#2E3F34] ${
+            className={`sheet-container relative w-full max-w-[480px] mx-auto bg-[#f8f9fa] dark:bg-[#1E2A23] h-[72vh] sm:h-[600px] max-h-[85%] flex flex-col shadow-2xl border-t border-x border-gray-200 dark:border-[#2E3F34] ${
               isNoteSheetClosing ? 'sheet-exit' : 'sheet-enter'
             }`}
           >
@@ -1194,7 +1207,7 @@ export default function App() {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 no-scrollbar">
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 no-scrollbar bg-[#f8f9fa] dark:bg-[#1E2A23]">
               {noteSheetData?.content && (
                 <div className="bg-white dark:bg-[#17211C] border border-gray-200/90 dark:border-[#2E3F34] rounded-2xl p-3.5 shadow-2xs">
                   <div className="flex items-center gap-1.5 mb-1 text-gray-400 dark:text-[#8D9F94]">
@@ -1222,12 +1235,11 @@ export default function App() {
                   placeholder="Ketik renungan, doa, atau yang lainya disini..."
                   className="w-full bg-transparent text-[14.5px] leading-relaxed text-gray-900 dark:text-[#E3ECE6] placeholder-gray-400 dark:placeholder-[#6C8074] focus:outline-none transition-none resize-none h-36"
                 />
-
                 {noteSheetData?.note && (
-                  <div className="flex justify-end pt-1 border-t border-gray-100">
+                  <div className="flex justify-end pt-1 border-t border-gray-100 dark:border-[#2E3F34]">
                     <button
                       onClick={handleDeleteNoteConfirm}
-                      className="text-[11.5px] font-bold text-rose-600 hover:text-rose-700 active:scale-95 transition-transform flex items-center gap-1 py-1 px-2 rounded-lg hover:bg-rose-50 select-none"
+                      className="text-[11.5px] font-bold text-rose-600 dark:text-rose-400 hover:text-rose-700 active:scale-95 transition-transform flex items-center gap-1 py-1 px-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30 select-none"
                     >
                       <i className="ph-bold ph-trash text-xs"></i>
                       <span>Hapus Catatan</span>
@@ -1238,13 +1250,13 @@ export default function App() {
 
               <div className="space-y-2 pt-1">
                 <div className="flex items-center justify-between px-1">
-                  <div className="flex items-center gap-1.5 text-gray-500">
+                  <div className="flex items-center gap-1.5 text-gray-500 dark:text-[#8D9F94]">
                     <i className="ph-bold ph-clock-counter-clockwise text-xs"></i>
                     <span className="text-[10.5px] font-extrabold uppercase tracking-wider">
                       Riwayat Catatan Tersimpan
                     </span>
                   </div>
-                  <span className="text-[10px] font-bold text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full">
+                  <span className="text-[10px] font-bold text-gray-500 dark:text-[#74C69D] bg-gray-200 dark:bg-[#26372D] px-2 py-0.5 rounded-full">
                     {savedVerses.filter((v: any) => v.note && v.note.trim() !== '').length}
                   </span>
                 </div>

@@ -56,6 +56,46 @@ const BIBLE_BOOKS = [
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('home');
+  const [isDark, setIsDark] = useState<boolean>(() => {
+    try {
+      const savedTheme = localStorage.getItem('bible_theme');
+      if (savedTheme) return savedTheme === 'dark';
+      const tg = (window as any).Telegram?.WebApp;
+      if (tg?.colorScheme) return tg.colorScheme === 'dark';
+      return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    } catch (e) {
+      return false;
+    }
+  });
+
+  const toggleTheme = () => {
+    document.documentElement.classList.add('theme-transitioning');
+    setIsDark(prev => {
+      const nextState = !prev;
+      try {
+        localStorage.setItem('bible_theme', nextState ? 'dark' : 'light');
+      } catch (e) {}
+      return nextState;
+    });
+    setTimeout(() => {
+      document.documentElement.classList.remove('theme-transitioning');
+    }, 280);
+  };
+
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg) {
+      const targetColor = isDark ? '#17211C' : '#fafafa';
+      try { tg.setHeaderColor?.(targetColor); } catch (e) {}
+      try { tg.setBackgroundColor?.(targetColor); } catch (e) {}
+    }
+  }, [isDark]);
+
   const [selectedVerses, setSelectedVerses] = useState<number[]>([]);
   const [toastMsg, setToastMsg] = useState('');
   const [showToast, setShowToast] = useState(false);
@@ -121,6 +161,55 @@ export default function App() {
   const [isNavVisible, setIsNavVisible] = useState(true);
   const lastScrollY = useRef(0);
   const mainRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el) return;
+
+    let startY = 0;
+    let isPulling = false;
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      startY = e.touches[0].clientY;
+      isPulling = true;
+      el.style.transition = 'none';
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (!isPulling || e.touches.length !== 1) return;
+      const currentY = e.touches[0].clientY;
+      const deltaY = currentY - startY;
+
+      if (el.scrollTop <= 0 && deltaY > 0) {
+        const pull = Math.min(Math.pow(deltaY, 0.72) * 2.2, 75);
+        el.style.transform = `translate3d(0, ${pull}px, 0)`;
+      } else if (el.scrollTop + el.clientHeight >= el.scrollHeight - 1 && deltaY < 0) {
+        const pull = Math.max(-Math.pow(-deltaY, 0.72) * 2.2, -75);
+        el.style.transform = `translate3d(0, ${pull}px, 0)`;
+      }
+    };
+
+    const onTouchEnd = () => {
+      if (!isPulling) return;
+      isPulling = false;
+      el.style.transition = 'transform 0.38s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+      el.style.transform = 'translate3d(0, 0, 0)';
+    };
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: true });
+    el.addEventListener('touchend', onTouchEnd, { passive: true });
+    el.addEventListener('touchcancel', onTouchEnd, { passive: true });
+
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
+      el.removeEventListener('touchcancel', onTouchEnd);
+    };
+  }, [activeTab]);
+
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const colorHoldTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isColorHeld = useRef(false);
@@ -229,9 +318,20 @@ export default function App() {
         };
       }
     } catch (error) {}
-    
+
+    const handleContextMenu = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener('contextmenu', handleContextMenu);
+
     fetchHomeData();
-    return cleanupInsets;
+    return () => {
+      if (cleanupInsets) cleanupInsets();
+      window.removeEventListener('contextmenu', handleContextMenu);
+    };
   }, []);
 
   // Simpan otomatis setiap kali berpindah kitab atau pasal
@@ -854,10 +954,10 @@ export default function App() {
   const filteredBooks = availableBooks.filter(b => b.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
-    <div id="app-container" className="flex flex-col h-full bg-[#fafafa]">
+    <div id="app-container" className={`flex flex-col h-full bg-[#fafafa] dark:bg-[#17211C] text-gray-900 dark:text-[#E3ECE6] ${isDark ? 'dark' : ''}`}>
       {activeTab !== 'bible' && (
         <div 
-          className="absolute top-0 left-0 right-0 bg-[#fafafa]/85 backdrop-blur-xl z-[60] pointer-events-none" 
+          className="absolute top-0 left-0 right-0 bg-[#fafafa]/85 dark:bg-[#17211C]/85 backdrop-blur-xl z-[60] pointer-events-none transition-colors duration-250"
           style={{ height: 'calc(max(var(--tg-safe-top, 0px), env(safe-area-inset-top, 0px)) + 3rem)' }}
         />
       )}
@@ -871,7 +971,19 @@ export default function App() {
           paddingBottom: 'calc(max(var(--tg-safe-bottom, 0px), env(safe-area-inset-bottom, 0px)) + 7rem)'
         }}
       >
-        {activeTab === 'home' && <HomeTab dailyVerse={dailyVerse} communities={communities} channels={channels} news={news} userName={userName} isAdmin={isAdmin} setActiveTab={setActiveTab} />}
+        {activeTab === 'home' && (
+          <HomeTab 
+            dailyVerse={dailyVerse} 
+            communities={communities} 
+            channels={channels} 
+            news={news} 
+            userName={userName} 
+            isAdmin={isAdmin} 
+            setActiveTab={setActiveTab}
+            isDark={isDark}
+            toggleTheme={toggleTheme}
+          />
+        )}
         
         {activeTab === 'bible' && (
           <BibleTab
@@ -895,6 +1007,8 @@ export default function App() {
             canGoNext={canGoNext}
             highlightedVerse={highlightedVerse}
             setHighlightedVerse={setHighlightedVerse}
+            isDark={isDark}
+            toggleTheme={toggleTheme}
           />
         )}
 
@@ -904,57 +1018,68 @@ export default function App() {
 
       {isSelectorOpen && (
         <div className="absolute inset-0 z-[100] flex flex-col justify-end">
-          <div className="absolute inset-0 bg-gray-900/60 transition-opacity" onClick={() => setIsSelectorOpen(false)}></div>
+          <div className="absolute inset-0 bg-black/60 dark:bg-[#0E1511]/85 backdrop-blur-xs transition-opacity" onClick={() => setIsSelectorOpen(false)}></div>
           
-          <div className="relative bg-white w-full max-w-[500px] mx-auto rounded-t-[1.5rem] h-[85vh] flex flex-col shadow-2xl animate-[fadeIn_0.25s_ease-out]">
-            <div className="flex items-center justify-between p-5 border-b border-gray-100 shrink-0 bg-white rounded-t-[1.5rem]">
+          <div className="relative bg-white dark:bg-[#1E2A23] w-full max-w-[500px] mx-auto rounded-t-[1.5rem] h-[85vh] flex flex-col shadow-2xl animate-[fadeIn_0.25s_ease-out] border-t dark:border-[#2E3F34]">
+            <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-[#2E3F34] shrink-0 bg-white dark:bg-[#1E2A23] rounded-t-[1.5rem]">
               {selectorStep === 'chapter' ? (
-                <button onClick={() => setSelectorStep('book')} className="p-2 -ml-2 text-gray-500 hover:bg-gray-100 rounded-full transition"><i className="ph-bold ph-arrow-left text-xl"></i></button>
+                <button onClick={() => setSelectorStep('book')} className="p-2 -ml-2 text-gray-500 dark:text-[#8D9F94] hover:bg-gray-100 dark:hover:bg-[#27382F] rounded-full transition"><i className="ph-bold ph-arrow-left text-xl"></i></button>
               ) : (
                 <div className="w-8"></div>
               )}
-              <h3 className="font-extrabold text-lg text-gray-900">
+              <h3 className="font-extrabold text-lg text-gray-900 dark:text-[#E3ECE6]">
                 {selectorStep === 'book' ? 'Pilih Kitab' : selectorStep === 'version' ? 'Pilih Terjemahan' : `Pasal ${tempSelectedBook.name}`}
               </h3>
-              <button onClick={() => setIsSelectorOpen(false)} className="p-2 -mr-2 text-gray-500 hover:bg-gray-100 rounded-full transition"><i className="ph-bold ph-x text-xl"></i></button>
+              <button onClick={() => setIsSelectorOpen(false)} className="p-2 -mr-2 text-gray-500 dark:text-[#8D9F94] hover:bg-gray-100 dark:hover:bg-[#27382F] rounded-full transition"><i className="ph-bold ph-x text-xl"></i></button>
             </div>
 
             {selectorStep === 'book' && (
-              <div className="px-5 py-3 border-b border-gray-100 shrink-0 bg-white">
-                <div className="relative"><i className="ph-bold ph-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"></i><input type="text" placeholder="Cari kitab (cth: Yohanes)..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-gray-50 rounded-xl py-3 pl-10 pr-4 text-[13px] font-medium focus:outline-none focus:ring-1 focus:ring-gray-300 transition" /></div>
+              <div className="px-5 py-3 border-b border-gray-100 dark:border-[#2E3F34] shrink-0 bg-white dark:bg-[#1E2A23]">
+                <div className="relative">
+                  <i className="ph-bold ph-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#8D9F94]"></i>
+                  <input type="text" placeholder="Cari kitab (cth: Yohanes)..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-gray-50 dark:bg-[#17211C] text-gray-900 dark:text-[#E3ECE6] placeholder-gray-400 dark:placeholder-[#6C8074] rounded-xl py-3 pl-10 pr-4 text-[13px] font-medium focus:outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-[#374F40] transition border border-transparent dark:border-[#2E3F34]" />
+                </div>
               </div>
             )}
 
-            <div className="flex-1 overflow-y-auto p-5 scroll-area no-scrollbar bg-[#fafafa]">
+            <div className="flex-1 overflow-y-auto p-5 scroll-area no-scrollbar bg-[#fafafa] dark:bg-[#17211C]">
               {selectorStep === 'version' ? (
                 <div className="space-y-6">
                   {BIBLE_LANGUAGES.map((group) => (
                     <div key={group.code} className="space-y-2.5">
                       <div className="flex items-center gap-2 px-1">
-                        <span className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest">{group.name}</span>
-                        <div className="flex-1 h-[1px] bg-gray-200"></div>
+                        <span className="text-[11px] font-extrabold text-gray-400 dark:text-[#8D9F94] uppercase tracking-widest">{group.name}</span>
+                        <div className="flex-1 h-[1px] bg-gray-200 dark:bg-[#2E3F34]"></div>
                       </div>
                       <div className="space-y-2">
                         {group.versions.map((ver) => {
                           const isSelected = currentVersion.id === ver.id;
                           return (
-                            <button
-                               key={ver.id}
-                               onClick={() => handleSelectVersion(ver)}
-                               className={`w-full p-4 rounded-2xl text-left transition border flex justify-between items-center ${isSelected ? 'bg-gray-900 text-white border-gray-900 shadow-md' : 'bg-white text-gray-800 border-gray-100 hover:border-gray-300 shadow-sm'}`}
+                            <button 
+                              key={ver.id}
+                              onClick={() => handleSelectVersion(ver)}
+                              className={`w-full p-4 rounded-2xl text-left transition border flex justify-between items-center ${
+                                isSelected 
+                                  ? 'bg-gray-900 dark:bg-[#26372D] text-white dark:text-[#74C69D] border-gray-900 dark:border-[#74C69D] shadow-md' 
+                                  : 'bg-white dark:bg-[#1E2A23] text-gray-800 dark:text-[#E3ECE6] border-gray-100 dark:border-[#2E3F34] hover:border-gray-300 dark:hover:border-[#3C5143] shadow-sm'
+                              }`}
                             >
                               <div className="pr-3">
                                 <div className="flex items-center gap-2 mb-1">
                                   <span className="font-bold text-[14px]">{ver.name}</span>
                                   {ver.testamentScope === 'NT' && (
-                                    <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md ${isSelected ? 'bg-gray-800 text-yellow-300 border border-gray-700' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>PB</span>
+                                    <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md ${
+                                      isSelected 
+                                        ? 'bg-gray-800 dark:bg-[#17211C] text-yellow-300 dark:text-[#74C69D] border border-gray-700 dark:border-[#2E3F34]' 
+                                        : 'bg-amber-50 dark:bg-[#26372D] text-amber-700 dark:text-[#74C69D] border border-amber-200 dark:border-[#2E3F34]'
+                                    }`}>PB</span>
                                   )}
                                 </div>
                                 {ver.description && (
-                                  <p className={`text-[11px] leading-tight ${isSelected ? 'text-gray-300' : 'text-gray-500'}`}>{ver.description}</p>
+                                  <p className={`text-[11px] leading-tight ${isSelected ? 'text-gray-300 dark:text-[#8D9F94]' : 'text-gray-500 dark:text-[#8D9F94]'}`}>{ver.description}</p>
                                 )}
                               </div>
-                              {isSelected && <i className="ph-bold ph-check-circle text-xl text-green-400 shrink-0"></i>}
+                              {isSelected && <i className="ph-bold ph-check-circle text-xl text-green-400 dark:text-[#74C69D] shrink-0"></i>}
                             </button>
                           );
                         })}
@@ -967,14 +1092,18 @@ export default function App() {
                   {currentVersion.testamentScope !== 'NT' && filteredBooks.filter(b => b.test === 'PL').length > 0 && (
                     <div>
                       <div className="flex items-center justify-between mb-3 px-1">
-                        <h4 className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest">Perjanjian Lama</h4>
+                        <h4 className="text-[11px] font-extrabold text-gray-400 dark:text-[#8D9F94] uppercase tracking-widest">Perjanjian Lama</h4>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         {filteredBooks.filter(b => b.test === 'PL').map((book) => (
                           <button
                             key={book.id}
                             onClick={() => { setTempSelectedBook(book); setSelectorStep('chapter'); setSearchQuery(''); }}
-                            className={`p-3 rounded-xl text-left font-bold text-[13px] transition border ${currentBook.id === book.id ? 'bg-[#1a1d23] text-white border-[#1a1d23] shadow-md' : 'bg-white text-gray-700 border-gray-100 hover:border-gray-300'}`}
+                            className={`p-3 rounded-xl text-left font-bold text-[13px] transition border ${
+                              currentBook.id === book.id 
+                                ? 'bg-[#1a1d23] dark:bg-[#26372D] text-white dark:text-[#74C69D] border-[#1a1d23] dark:border-[#74C69D] shadow-md' 
+                                : 'bg-white dark:bg-[#1E2A23] text-gray-700 dark:text-[#E3ECE6] border-gray-100 dark:border-[#2E3F34] hover:border-gray-300 dark:hover:border-[#3C5143]'
+                            }`}
                           >
                             {book.name}
                           </button>
@@ -985,13 +1114,17 @@ export default function App() {
 
                   {filteredBooks.filter(b => b.test === 'PB').length > 0 && (
                     <div>
-                      <h4 className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest mb-3 pl-1">Perjanjian Baru</h4>
+                      <h4 className="text-[11px] font-extrabold text-gray-400 dark:text-[#8D9F94] uppercase tracking-widest mb-3 pl-1">Perjanjian Baru</h4>
                       <div className="grid grid-cols-2 gap-2">
                         {filteredBooks.filter(b => b.test === 'PB').map((book) => (
-                          <button
-                             key={book.id}
-                             onClick={() => { setTempSelectedBook(book); setSelectorStep('chapter'); setSearchQuery(''); }}
-                             className={`p-3 rounded-xl text-left font-bold text-[13px] transition border ${currentBook.id === book.id ? 'bg-[#1a1d23] text-white border-[#1a1d23] shadow-md' : 'bg-white text-gray-700 border-gray-100 hover:border-gray-300'}`}
+                          <button 
+                            key={book.id}
+                            onClick={() => { setTempSelectedBook(book); setSelectorStep('chapter'); setSearchQuery(''); }}
+                            className={`p-3 rounded-xl text-left font-bold text-[13px] transition border ${
+                              currentBook.id === book.id 
+                                ? 'bg-[#1a1d23] dark:bg-[#26372D] text-white dark:text-[#74C69D] border-[#1a1d23] dark:border-[#74C69D] shadow-md' 
+                                : 'bg-white dark:bg-[#1E2A23] text-gray-700 dark:text-[#E3ECE6] border-gray-100 dark:border-[#2E3F34] hover:border-gray-300 dark:hover:border-[#3C5143]'
+                            }`}
                           >
                             {book.name}
                           </button>
@@ -999,16 +1132,19 @@ export default function App() {
                       </div>
                     </div>
                   )}
-
-                  {filteredBooks.length === 0 && <p className="text-center text-sm text-gray-400 py-4">Kitab tidak ditemukan.</p>}
+                  {filteredBooks.length === 0 && <p className="text-center text-sm text-gray-400 dark:text-[#8D9F94] py-4">Kitab tidak ditemukan.</p>}
                 </div>
               ) : (
                 <div className="grid grid-cols-5 gap-2">
                   {Array.from({ length: tempSelectedBook.chapters }, (_, i) => i + 1).map((ch) => (
-                    <button 
-                       key={ch} 
-                       onClick={() => { setCurrentBook(tempSelectedBook); setCurrentChapter(ch); setIsSelectorOpen(false); }} 
-                       className={`aspect-square flex items-center justify-center rounded-xl font-bold text-sm transition border ${currentBook.id === tempSelectedBook.id && currentChapter === ch ? 'bg-[#1a1d23] text-white border-[#1a1d23] shadow-md scale-105' : 'bg-white text-gray-700 border-gray-100 hover:border-gray-300'}`}
+                    <button
+                      key={ch}
+                      onClick={() => { setCurrentBook(tempSelectedBook); setCurrentChapter(ch); setIsSelectorOpen(false); }}
+                      className={`aspect-square flex items-center justify-center rounded-xl font-bold text-sm transition border ${
+                        currentBook.id === tempSelectedBook.id && currentChapter === ch 
+                          ? 'bg-[#1a1d23] dark:bg-[#26372D] text-white dark:text-[#74C69D] border-[#1a1d23] dark:border-[#74C69D] shadow-md scale-105' 
+                          : 'bg-white dark:bg-[#1E2A23] text-gray-700 dark:text-[#E3ECE6] border-gray-100 dark:border-[#2E3F34] hover:border-gray-300 dark:hover:border-[#3C5143]'
+                      }`}
                     >
                       {ch}
                     </button>
@@ -1029,30 +1165,30 @@ export default function App() {
             }`}
           />
           <div 
-            className={`sheet-container relative w-full max-w-[480px] mx-auto bg-[#f8f9fa] h-[75vh] max-h-[640px] flex flex-col shadow-[0_-12px_36px_rgba(0,0,0,0.15)] border-t border-x border-gray-200 ${
+            className={`sheet-container relative w-full max-w-[480px] mx-auto bg-[#f8f9fa] dark:bg-[#1E2A23] h-[75vh] max-h-[640px] flex flex-col shadow-[0_-12px_36px_rgba(0,0,0,0.15)] border-t border-x border-gray-200 dark:border-[#2E3F34] ${
               isNoteSheetClosing ? 'sheet-exit' : 'sheet-enter'
             }`}
           >
-            <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mt-3 mb-1 shrink-0"></div>
-
-            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 shrink-0 bg-[#f8f9fa]">
+            <div className="w-10 h-1 bg-gray-300 dark:bg-[#2E3F34] rounded-full mx-auto mt-3 mb-1 shrink-0"></div>
+            
+            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 dark:border-[#2E3F34] shrink-0 bg-[#f8f9fa] dark:bg-[#1E2A23]">
               <button 
                 onClick={closeNoteSheet}
-                className="text-[14px] font-medium text-gray-500 hover:text-gray-900 active:scale-90 transition-transform py-1 px-1 select-none"
+                className="text-[14px] font-medium text-gray-500 dark:text-[#8D9F94] hover:text-gray-900 dark:hover:text-[#E3ECE6] active:scale-90 transition-transform py-1 px-1 select-none"
               >
                 Batal
               </button>
               
-              <div className="flex items-center gap-1.5 px-3.5 py-1 bg-white border border-gray-200/90 rounded-full shadow-2xs">
-                <i className="ph-fill ph-book-open-text text-gray-900 text-xs"></i>
-                <span className="text-[12.5px] font-extrabold text-gray-900 tracking-tight">
+              <div className="flex items-center gap-1.5 px-3.5 py-1 bg-white dark:bg-[#26372D] border border-gray-200/90 dark:border-[#2E3F34] rounded-full shadow-2xs">
+                <i className="ph-fill ph-book-open-text text-gray-900 dark:text-[#74C69D] text-xs"></i>
+                <span className="text-[12.5px] font-extrabold text-gray-900 dark:text-[#E3ECE6] tracking-tight">
                   {noteSheetData ? `${noteSheetData.book} ${noteSheetData.chapter}:${noteSheetData.verse}` : 'Jurnal Renungan'}
                 </span>
               </div>
 
               <button 
                 onClick={() => saveVerseData(null, noteInput)}
-                className="px-4 py-1.5 bg-gray-900 text-white rounded-full text-[13px] font-bold hover:bg-black active:scale-90 transition-transform shadow-xs select-none"
+                className="px-4 py-1.5 bg-gray-900 dark:bg-[#26372D] text-white dark:text-[#74C69D] border border-transparent dark:border-[#74C69D] rounded-full text-[13px] font-bold hover:bg-black active:scale-90 transition-transform shadow-xs select-none"
               >
                 Selesai
               </button>
@@ -1060,32 +1196,31 @@ export default function App() {
 
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 no-scrollbar">
               {noteSheetData?.content && (
-                <div className="bg-white border border-gray-200/90 rounded-2xl p-3.5 shadow-2xs">
-                  <div className="flex items-center gap-1.5 mb-1 text-gray-400">
+                <div className="bg-white dark:bg-[#17211C] border border-gray-200/90 dark:border-[#2E3F34] rounded-2xl p-3.5 shadow-2xs">
+                  <div className="flex items-center gap-1.5 mb-1 text-gray-400 dark:text-[#8D9F94]">
                     <i className="ph-bold ph-quotes text-xs"></i>
                     <span className="text-[9.5px] font-extrabold uppercase tracking-wider">Ayat Referensi</span>
                   </div>
-                  <p className="text-[13.5px] text-gray-800 leading-relaxed font-normal select-none pl-0.5">
+                  <p className="text-[13.5px] text-gray-800 dark:text-[#E3ECE6] leading-relaxed font-normal select-none pl-0.5">
                     "{noteSheetData.content}"
                   </p>
                 </div>
               )}
 
-              <div className="bg-white border border-gray-200/90 rounded-2xl p-4 shadow-2xs space-y-3 transition-colors focus-within:border-gray-400">
-                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">
+              <div className="bg-white dark:bg-[#17211C] border border-gray-200/90 dark:border-[#2E3F34] rounded-2xl p-4 shadow-2xs space-y-3 transition-colors focus-within:border-gray-400 dark:focus-within:border-[#74C69D]">
+                <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#2E3F34] pb-2">
+                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 dark:text-[#8D9F94]">
                     {noteSheetData?.note ? 'Catatan Tersimpan' : 'Tulis kan'}
                   </span>
-                  <span className="text-[10px] font-bold text-gray-400">
+                  <span className="text-[10px] font-bold text-gray-400 dark:text-[#8D9F94]">
                     {noteInput.length} karakter
                   </span>
                 </div>
-
                 <textarea
                   value={noteInput}
                   onChange={(e) => setNoteInput(e.target.value)}
                   placeholder="Ketik renungan, doa, atau yang lainya disini..."
-                  className="w-full bg-transparent text-[14.5px] leading-relaxed text-gray-900 placeholder-gray-400 focus:outline-none transition-none resize-none h-36"
+                  className="w-full bg-transparent text-[14.5px] leading-relaxed text-gray-900 dark:text-[#E3ECE6] placeholder-gray-400 dark:placeholder-[#6C8074] focus:outline-none transition-none resize-none h-36"
                 />
 
                 {noteSheetData?.note && (
@@ -1115,7 +1250,7 @@ export default function App() {
                 </div>
 
                 {savedVerses.filter((v: any) => v.note && v.note.trim() !== '').length > 0 ? (
-                  <div className="bg-white border border-gray-200/90 rounded-2xl divide-y divide-gray-100 overflow-hidden shadow-2xs">
+                  <div className="bg-white dark:bg-[#17211C] border border-gray-200/90 dark:border-[#2E3F34] rounded-2xl divide-y divide-gray-100 dark:divide-[#2E3F34] overflow-hidden shadow-2xs">
                     {savedVerses
                       .filter((v: any) => v.note && v.note.trim() !== '')
                       .slice(0, 8)
@@ -1132,26 +1267,26 @@ export default function App() {
                             });
                             setNoteInput(item.note);
                           }}
-                          className="p-3.5 hover:bg-gray-50/80 active:bg-gray-100 active:scale-[0.995] cursor-pointer transition-all duration-150 flex flex-col gap-1 select-none group"
+                          className="p-3.5 hover:bg-gray-50/80 dark:hover:bg-[#26372D] active:bg-gray-100 dark:active:bg-[#2F4438] active:scale-[0.995] cursor-pointer transition-all duration-150 flex flex-col gap-1 select-none group"
                         >
                           <div className="flex items-center justify-between">
-                            <span className="text-[12.5px] font-bold text-gray-900 group-hover:text-gray-700 transition-colors">
+                            <span className="text-[12.5px] font-bold text-gray-900 dark:text-[#E3ECE6] group-hover:text-gray-700 dark:group-hover:text-[#74C69D] transition-colors">
                               {item.book} {item.chapter}:{item.verse}
                             </span>
-                            <div className="flex items-center gap-1 text-[10px] font-bold text-gray-400 group-hover:text-gray-600 transition-colors">
+                            <div className="flex items-center gap-1 text-[10px] font-bold text-gray-400 dark:text-[#8D9F94] group-hover:text-gray-600 dark:group-hover:text-[#E3ECE6] transition-colors">
                               <span>Buka</span>
                               <i className="ph-bold ph-caret-right text-xs"></i>
                             </div>
                           </div>
-                          <p className="text-[13px] text-gray-500 line-clamp-2 leading-relaxed font-normal">
+                          <p className="text-[13px] text-gray-500 dark:text-[#8D9F94] line-clamp-2 leading-relaxed font-normal">
                             {item.note}
                           </p>
                         </div>
                       ))}
                   </div>
                 ) : (
-                  <div className="bg-white border border-dashed border-gray-200 rounded-2xl p-5 text-center">
-                    <p className="text-[12px] text-gray-400 font-normal italic select-none">
+                  <div className="bg-white dark:bg-[#17211C] border border-dashed border-gray-200 dark:border-[#2E3F34] rounded-2xl p-5 text-center">
+                    <p className="text-[12px] text-gray-400 dark:text-[#8D9F94] font-normal italic select-none">
                       Belum ada riwayat catatan lain yang tersimpan.
                     </p>
                   </div>
@@ -1171,29 +1306,30 @@ export default function App() {
             }`}
           />
           <div 
-            className={`sheet-container relative w-full max-w-[480px] mx-auto bg-[#f8f9fa] h-[75vh] max-h-[640px] flex flex-col shadow-[0_-12px_36px_rgba(0,0,0,0.15)] border-t border-x border-gray-200 ${
+            className={`sheet-container relative w-full max-w-[480px] mx-auto bg-[#f8f9fa] dark:bg-[#1E2A23] h-[75vh] max-h-[640px] flex flex-col shadow-[0_-12px_36px_rgba(0,0,0,0.15)] border-t border-x border-gray-200 dark:border-[#2E3F34] ${
               isLabelSheetClosing ? 'sheet-exit' : 'sheet-enter'
             }`}
           >
-            <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mt-3 mb-1 shrink-0"></div>
-            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 shrink-0 bg-[#f8f9fa]">
+            <div className="w-10 h-1 bg-gray-300 dark:bg-[#2E3F34] rounded-full mx-auto mt-3 mb-1 shrink-0"></div>
+            
+            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 dark:border-[#2E3F34] shrink-0 bg-[#f8f9fa] dark:bg-[#1E2A23]">
               <button 
                 onClick={closeLabelSheet}
-                className="text-[14px] font-medium text-gray-500 hover:text-gray-900 active:scale-90 transition-transform py-1 px-1 select-none"
+                className="text-[14px] font-medium text-gray-500 dark:text-[#8D9F94] hover:text-gray-900 dark:hover:text-[#E3ECE6] active:scale-90 transition-transform py-1 px-1 select-none"
               >
                 Batal
               </button>
               
-              <div className="flex items-center gap-1.5 px-3.5 py-1 bg-white border border-gray-200/90 rounded-full shadow-2xs">
-                <i className="ph-fill ph-tag text-gray-900 text-xs"></i>
-                <span className="text-[12.5px] font-extrabold text-gray-900 tracking-tight">
+              <div className="flex items-center gap-1.5 px-3.5 py-1 bg-white dark:bg-[#26372D] border border-gray-200/90 dark:border-[#2E3F34] rounded-full shadow-2xs">
+                <i className="ph-fill ph-tag text-gray-900 dark:text-[#74C69D] text-xs"></i>
+                <span className="text-[12.5px] font-extrabold text-gray-900 dark:text-[#E3ECE6] tracking-tight">
                   {labelSheetData ? `${labelSheetData.book} ${labelSheetData.chapter}:${labelSheetData.verse}` : 'Kelola Label'}
                 </span>
               </div>
 
               <button 
                 onClick={() => saveVerseData(null, null, selectedLabelsForSheet)}
-                className="px-4 py-1.5 bg-gray-900 text-white rounded-full text-[13px] font-bold hover:bg-black active:scale-90 transition-transform shadow-xs select-none"
+                className="px-4 py-1.5 bg-gray-900 dark:bg-[#26372D] text-white dark:text-[#74C69D] border border-transparent dark:border-[#74C69D] rounded-full text-[13px] font-bold hover:bg-black active:scale-90 transition-transform shadow-xs select-none"
               >
                 Selesai
               </button>
@@ -1201,24 +1337,24 @@ export default function App() {
 
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 pb-36 no-scrollbar">
               {labelSheetData?.content && (
-                <div className="bg-white border border-gray-200/90 rounded-2xl p-3.5 shadow-2xs">
-                  <div className="flex items-center gap-1.5 mb-1 text-gray-400">
+                <div className="bg-white dark:bg-[#17211C] border border-gray-200/90 dark:border-[#2E3F34] rounded-2xl p-3.5 shadow-2xs">
+                  <div className="flex items-center gap-1.5 mb-1 text-gray-400 dark:text-[#8D9F94]">
                     <i className="ph-bold ph-quotes text-xs"></i>
                     <span className="text-[9.5px] font-extrabold uppercase tracking-wider">Ayat Referensi</span>
                   </div>
-                  <p className="text-[13.5px] text-gray-800 leading-relaxed font-normal select-none pl-0.5">
+                  <p className="text-[13.5px] text-gray-800 dark:text-[#E3ECE6] leading-relaxed font-normal select-none pl-0.5">
                     "{labelSheetData.content}"
                   </p>
                 </div>
               )}
 
-              <div className="bg-white border border-gray-200/90 rounded-2xl p-3.5 shadow-2xs space-y-2.5">
-                <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">
+              <div className="bg-white dark:bg-[#17211C] border border-gray-200/90 dark:border-[#2E3F34] rounded-2xl p-3.5 shadow-2xs space-y-2.5">
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 dark:text-[#8D9F94]">
                   Buat Label Baru
                 </span>
                 <div className="flex items-center gap-2">
                   <div className="relative flex-1">
-                    <i className="ph-bold ph-plus absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                    <i className="ph-bold ph-plus absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#8D9F94] text-xs"></i>
                     <input
                       type="text"
                       value={customLabelInput}
@@ -1235,23 +1371,23 @@ export default function App() {
                         }
                       }}
                       placeholder="Ketik label baru..."
-                      className="w-full bg-[#f4f5f7] border border-transparent focus:border-gray-300 focus:bg-white rounded-xl py-2.5 pl-9 pr-3.5 text-[13px] font-medium text-gray-900 placeholder-gray-400 focus:outline-none transition-all"
+                      className="w-full bg-[#f4f5f7] dark:bg-[#26372D] border border-transparent dark:border-[#2E3F34] focus:border-gray-300 dark:focus:border-[#74C69D] focus:bg-white dark:focus:bg-[#223329] rounded-xl py-2.5 pl-9 pr-3.5 text-[13px] font-medium text-gray-900 dark:text-[#E3ECE6] placeholder-gray-400 dark:placeholder-[#6C8074] focus:outline-none transition-all"
                     />
                   </div>
                   <button
                     type="button"
                     onClick={handleAddCustomLabel}
                     disabled={!customLabelInput.trim()}
-                    className="px-4 py-2.5 bg-gray-900 text-white rounded-xl text-[12px] font-bold disabled:opacity-30 disabled:pointer-events-none active:scale-95 transition-transform"
+                    className="px-4 py-2.5 bg-gray-900 dark:bg-[#26372D] text-white dark:text-[#74C69D] border border-transparent dark:border-[#2E3F34] rounded-xl text-[12px] font-bold disabled:opacity-30 disabled:pointer-events-none active:scale-95 transition-transform"
                   >
                     Tambah
                   </button>
                 </div>
               </div>
 
-              <div className="bg-white border border-gray-200/90 rounded-2xl p-4 shadow-2xs space-y-3">
-                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">
+             <div className="bg-white dark:bg-[#17211C] border border-gray-200/90 dark:border-[#2E3F34] rounded-2xl p-4 shadow-2xs space-y-3">
+                <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#2E3F34] pb-2">
+                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 dark:text-[#8D9F94]">
                     Pilih Label
                   </span>
                   <div className="flex items-center gap-2">
@@ -1259,12 +1395,12 @@ export default function App() {
                       <button
                         type="button"
                         onClick={() => setSelectedLabelsForSheet([])}
-                        className="text-[10.5px] font-bold text-rose-600 hover:text-rose-700 active:scale-95 transition-transform"
+                        className="text-[10.5px] font-bold text-rose-600 dark:text-rose-400 hover:text-rose-700 active:scale-95 transition-transform"
                       >
                         Hapus Semua
                       </button>
                     )}
-                    <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                    <span className="text-[10px] font-bold text-gray-500 dark:text-[#74C69D] bg-gray-100 dark:bg-[#26372D] px-2 py-0.5 rounded-full">
                       {selectedLabelsForSheet.length} Terpilih
                     </span>
                   </div>
@@ -1279,37 +1415,38 @@ export default function App() {
                         type="button"
                         onClick={() => handleToggleLabel(preset.name)}
                         className={`p-3 rounded-xl border flex items-center justify-between transition-all duration-150 active:scale-95 text-left ${
-                          isChecked
-                            ? 'bg-gray-900 text-white border-gray-900 shadow-sm'
-                            : 'bg-gray-50/70 hover:bg-gray-100/80 text-gray-800 border-gray-200/70'
+                          isChecked 
+                            ? 'bg-gray-900 dark:bg-[#26372D] text-white dark:text-[#74C69D] border-gray-900 dark:border-[#74C69D] shadow-sm' 
+                            : 'bg-gray-50/70 dark:bg-[#1E2A23] hover:bg-gray-100/80 dark:hover:bg-[#26372D] text-gray-800 dark:text-[#E3ECE6] border-gray-200/70 dark:border-[#2E3F34]'
                         }`}
                       >
                         <div className="flex items-center gap-2">
-                          <i className={`ph-bold ${preset.icon} text-base ${isChecked ? 'text-white' : 'text-gray-600'}`}></i>
+                          <i className={`ph-bold ${preset.icon} text-base ${isChecked ? 'text-white dark:text-[#74C69D]' : 'text-gray-600 dark:text-[#8D9F94]'}`}></i>
                           <span className="text-[12.5px] font-bold">{preset.name}</span>
                         </div>
-                        {isChecked && <i className="ph-bold ph-check text-xs text-white"></i>}
+                        {isChecked && <i className="ph-bold ph-check text-xs text-white dark:text-[#74C69D]"></i>}
                       </button>
                     );
                   })}
                 </div>
 
                 {availableCustomLabels.filter(c => !PRESET_LABELS.some((p: VerseLabel) => p.name.toLowerCase() === c.toLowerCase())).length > 0 && (
-                  <div className="pt-2 border-t border-gray-100 space-y-2">
+                  <div className="pt-2 border-t border-gray-100 dark:border-[#2E3F34] space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">
+                      <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 dark:text-[#8D9F94]">
                         Label Kustom
                       </span>
                       <button
                         type="button"
                         onClick={() => setIsEditingCustomLabels(prev => !prev)}
                         className={`text-[10.5px] font-bold transition-colors ${
-                          isEditingCustomLabels ? 'text-gray-900' : 'text-gray-400 hover:text-gray-700'
+                          isEditingCustomLabels ? 'text-gray-900 dark:text-[#74C69D]' : 'text-gray-400 dark:text-[#8D9F94] hover:text-gray-700'
                         }`}
                       >
                         {isEditingCustomLabels ? 'Selesai' : 'Kelola'}
                       </button>
                     </div>
+
                     <div className="flex flex-wrap gap-1.5">
                       {availableCustomLabels
                         .filter(c => !PRESET_LABELS.some((p: VerseLabel) => p.name.toLowerCase() === c.toLowerCase()))
@@ -1335,10 +1472,10 @@ export default function App() {
                                 handleToggleLabel(cLabel);
                               }}
                               className={`relative cursor-pointer select-none px-3 py-1.5 rounded-xl border text-[11.5px] font-bold flex items-center gap-1.5 transition-all active:scale-95 ${
-                                isEditingCustomLabels ? 'animate-jiggle border-rose-300 bg-rose-50/50 text-rose-900 pr-2.5' :
+                                isEditingCustomLabels ? 'animate-jiggle border-rose-300 dark:border-rose-700/60 bg-rose-50 dark:bg-rose-950/40 text-rose-800 dark:text-rose-300 pr-2.5' :
                                 isChecked
-                                  ? 'bg-gray-900 text-white border-gray-900 shadow-xs'
-                                  : 'bg-[#f4f5f7] text-gray-800 border-gray-200/90 hover:bg-gray-200/60'
+                                  ? 'bg-gray-900 dark:bg-[#26372D] text-white dark:text-[#74C69D] border-gray-900 dark:border-[#74C69D] shadow-xs'
+                                  : 'bg-[#f4f5f7] dark:bg-[#1E2A23] text-gray-800 dark:text-[#E3ECE6] border-gray-200/90 dark:border-[#2E3F34] hover:bg-gray-200/60 dark:hover:bg-[#26372D]'
                               }`}
                             >
                               <i className="ph-bold ph-tag text-xs"></i>
@@ -1536,10 +1673,10 @@ export default function App() {
         )}
       </div>
 
-      <nav className={`absolute left-1/2 -translate-x-1/2 bg-white border border-gray-200 rounded-[2rem] px-6 py-3.5 flex justify-center gap-8 items-center z-40 w-max shadow-[0_10px_40px_-15px_rgba(0,0,0,0.15)] transition-all duration-300 ${(selectedVerses.length > 0 || isNoteSheetOpen || isLabelSheetOpen || !isNavVisible) ? 'opacity-0 invisible translate-y-24 pointer-events-none' : 'opacity-100 visible translate-y-0'}`} style={{ bottom: 'calc(max(var(--tg-safe-bottom, 0px), env(safe-area-inset-bottom, 0px)) + 1.5rem)' }}>
-        <button onClick={() => switchActiveTab('home')} className={`flex flex-col items-center gap-1 transition ${activeTab === 'home' ? 'text-gray-900 scale-110' : 'text-gray-400 hover:text-gray-600'}`}><i className={`${activeTab === 'home' ? 'ph-fill' : 'ph'} ph-house text-2xl`}></i><span className="text-[9px] font-extrabold tracking-wider uppercase">Home</span></button>
-        <button onClick={() => switchActiveTab('bible')} className={`flex flex-col items-center gap-1 transition ${activeTab === 'bible' ? 'text-gray-900 scale-110' : 'text-gray-400 hover:text-gray-600'}`}><i className={`${activeTab === 'bible' ? 'ph-fill' : 'ph'} ph-book-open-text text-2xl`}></i><span className="text-[9px] font-extrabold tracking-wider uppercase">Alkitab</span></button>
-        <button onClick={() => switchActiveTab('saved')} className={`flex flex-col items-center gap-1 transition ${activeTab === 'saved' ? 'text-gray-900 scale-110' : 'text-gray-400 hover:text-gray-600'}`}><i className={`${activeTab === 'saved' ? 'ph-fill' : 'ph'} ph-bookmark-simple text-2xl`}></i><span className="text-[9px] font-extrabold tracking-wider uppercase">Simpan</span></button>
+     <nav className={`absolute left-1/2 -translate-x-1/2 bg-white dark:bg-[#1E2A23]/95 backdrop-blur-xl border border-gray-200 dark:border-[#2E3F34] rounded-[2rem] px-6 py-3.5 flex justify-center gap-8 items-center z-40 w-max shadow-[0_10px_40px_-15px_rgba(0,0,0,0.15)] dark:shadow-[0_15px_40px_-10px_rgba(0,0,0,0.6)] transition-all duration-300 ${(selectedVerses.length > 0 || isNoteSheetOpen || isLabelSheetOpen || !isNavVisible) ? 'opacity-0 invisible translate-y-24 pointer-events-none' : 'opacity-100 visible translate-y-0'}`} style={{ bottom: 'calc(max(var(--tg-safe-bottom, 0px), env(safe-area-inset-bottom, 0px)) + 1.5rem)' }}>
+        <button onClick={() => switchActiveTab('home')} className={`flex flex-col items-center gap-1 transition-transform duration-150 active:scale-90 active:opacity-70 select-none ${activeTab === 'home' ? 'text-gray-900 dark:text-[#74C69D] scale-110' : 'text-gray-400 dark:text-[#8D9F94] hover:text-gray-600 dark:hover:text-[#E3ECE6]'}`}><i className={`${activeTab === 'home' ? 'ph-fill' : 'ph'} ph-house text-2xl`}></i><span className="text-[9px] font-extrabold tracking-wider uppercase">Home</span></button>
+        <button onClick={() => switchActiveTab('bible')} className={`flex flex-col items-center gap-1 transition-transform duration-150 active:scale-90 active:opacity-70 select-none ${activeTab === 'bible' ? 'text-gray-900 dark:text-[#74C69D] scale-110' : 'text-gray-400 dark:text-[#8D9F94] hover:text-gray-600 dark:hover:text-[#E3ECE6]'}`}><i className={`${activeTab === 'bible' ? 'ph-fill' : 'ph'} ph-book-open-text text-2xl`}></i><span className="text-[9px] font-extrabold tracking-wider uppercase">Alkitab</span></button>
+        <button onClick={() => switchActiveTab('saved')} className={`flex flex-col items-center gap-1 transition-transform duration-150 active:scale-90 active:opacity-70 select-none ${activeTab === 'saved' ? 'text-gray-900 dark:text-[#74C69D] scale-110' : 'text-gray-400 dark:text-[#8D9F94] hover:text-gray-600 dark:hover:text-[#E3ECE6]'}`}><i className={`${activeTab === 'saved' ? 'ph-fill' : 'ph'} ph-bookmark-simple text-2xl`}></i><span className="text-[9px] font-extrabold tracking-wider uppercase">Simpan</span></button>
       </nav>
 
       <div className={`absolute left-1/2 -translate-x-1/2 bg-[#1a1d23] text-white px-6 py-3.5 rounded-full text-[13px] font-bold shadow-2xl transition-all duration-300 z-[150] flex items-center gap-2 border border-gray-800 ${showToast ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`} style={{ top: showToast ? 'calc(max(var(--tg-safe-top, 0px), env(safe-area-inset-top, 0px)) + 1.5rem)' : '-100px' }}>

@@ -23,14 +23,14 @@ export default function SavedTab({ savedVerses = [], fetchSaved, onNavigateToVer
   ];
 
   const COLOR_MAP: Record<string, { name: string; text: string; bg: string }> = {
-    'yellow': { name: 'Kuning', text: 'bg-amber-100/90 text-amber-950 px-1.5 py-0.5 rounded-md box-decoration-clone', bg: 'bg-amber-400' },
-    'green': { name: 'Hijau', text: 'bg-emerald-100/90 text-emerald-950 px-1.5 py-0.5 rounded-md box-decoration-clone', bg: 'bg-emerald-400' },
-    'blue': { name: 'Biru', text: 'bg-sky-100/90 text-sky-950 px-1.5 py-0.5 rounded-md box-decoration-clone', bg: 'bg-sky-400' },
-    'pink': { name: 'Merah Muda', text: 'bg-rose-100/90 text-rose-950 px-1.5 py-0.5 rounded-md box-decoration-clone', bg: 'bg-rose-400' },
-    'purple': { name: 'Ungu', text: 'bg-purple-100/90 text-purple-950 px-1.5 py-0.5 rounded-md box-decoration-clone', bg: 'bg-purple-400' },
-    'orange': { name: 'Oranye', text: 'bg-orange-100/90 text-orange-950 px-1.5 py-0.5 rounded-md box-decoration-clone', bg: 'bg-orange-400' },
-    'teal': { name: 'Tosika', text: 'bg-teal-100/90 text-teal-950 px-1.5 py-0.5 rounded-md box-decoration-clone', bg: 'bg-teal-400' },
-    'indigo': { name: 'Nila', text: 'bg-indigo-100/90 text-indigo-950 px-1.5 py-0.5 rounded-md box-decoration-clone', bg: 'bg-indigo-400' },
+    'yellow': { name: 'Kuning', text: 'bg-amber-100/90 dark:bg-[#3D3319] text-amber-950 dark:text-amber-200 px-1.5 py-0.5 rounded-md box-decoration-clone', bg: 'bg-amber-400' },
+    'green': { name: 'Hijau', text: 'bg-emerald-100/90 dark:bg-[#1E382B] text-emerald-950 dark:text-[#74C69D] px-1.5 py-0.5 rounded-md box-decoration-clone', bg: 'bg-emerald-400' },
+    'blue': { name: 'Biru', text: 'bg-sky-100/90 dark:bg-[#1C3342] text-sky-950 dark:text-sky-200 px-1.5 py-0.5 rounded-md box-decoration-clone', bg: 'bg-sky-400' },
+    'pink': { name: 'Merah Muda', text: 'bg-rose-100/90 dark:bg-[#3D1E26] text-rose-950 dark:text-rose-200 px-1.5 py-0.5 rounded-md box-decoration-clone', bg: 'bg-rose-400' },
+    'purple': { name: 'Ungu', text: 'bg-purple-100/90 dark:bg-[#32203D] text-purple-950 dark:text-purple-200 px-1.5 py-0.5 rounded-md box-decoration-clone', bg: 'bg-purple-400' },
+    'orange': { name: 'Oranye', text: 'bg-orange-100/90 dark:bg-[#3D2617] text-orange-950 dark:text-orange-200 px-1.5 py-0.5 rounded-md box-decoration-clone', bg: 'bg-orange-400' },
+    'teal': { name: 'Tosika', text: 'bg-teal-100/90 dark:bg-[#163833] text-teal-950 dark:text-teal-200 px-1.5 py-0.5 rounded-md box-decoration-clone', bg: 'bg-teal-400' },
+    'indigo': { name: 'Nila', text: 'bg-indigo-100/90 dark:bg-[#202742] text-indigo-950 dark:text-indigo-200 px-1.5 py-0.5 rounded-md box-decoration-clone', bg: 'bg-indigo-400' },
   };
 
   useEffect(() => {
@@ -231,15 +231,15 @@ export default function SavedTab({ savedVerses = [], fetchSaved, onNavigateToVer
     <div className="animate-fadeIn px-5 pt-4 pb-12 select-none relative">
       <div className="flex justify-between items-center mb-5">
         <div>
-          <h2 className="font-bold text-2xl tracking-tight text-gray-900">Tersimpan</h2>
-          <p className="text-[13px] text-gray-400 font-medium mt-0.5">Koleksi ayat dan catatan pribadi Anda</p>
+          <h2 className="font-bold text-2xl tracking-tight text-gray-900 dark:text-white">Tersimpan</h2>
+          <p className="text-[13px] text-gray-400 dark:text-[#8D9F94] font-medium mt-0.5">Koleksi ayat dan catatan pribadi Anda</p>
         </div>
         <button
           onClick={() => setIsFilterOpen(prev => !prev)}
           className={`w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90 border ${
             isFilterOpen || hasActiveFilter
-              ? 'bg-gray-900 text-white border-gray-900 shadow-sm'
-              : 'bg-white text-gray-700 border-gray-200 shadow-2xs hover:bg-gray-50'
+              ? 'bg-gray-900 dark:bg-[#26372D] text-white dark:text-[#74C69D] border-gray-900 dark:border-[#74C69D] shadow-sm'
+              : 'bg-white dark:bg-[#1E2A23] text-gray-700 dark:text-[#8D9F94] border-gray-200 dark:border-[#2E3F34] shadow-2xs hover:bg-gray-50 dark:hover:bg-[#26372D]'
           }`}
           title="Filter"
         >
@@ -247,35 +247,43 @@ export default function SavedTab({ savedVerses = [], fetchSaved, onNavigateToVer
         </button>
       </div>
 
-      <div className="flex bg-[#f0f2f5] p-1 rounded-2xl mb-4">
+      <div className="flex bg-[#f0f2f5] dark:bg-[#1E2A23] p-1 rounded-2xl mb-4 border border-gray-200/40 dark:border-[#2E3F34]">
         <button
           onClick={() => setViewMode('activity')}
-          className={`flex-1 py-2 rounded-xl text-[11px] sm:text-[12px] font-bold transition-all duration-150 active:scale-95 ${
-            viewMode === 'activity' ? 'bg-white text-gray-900 shadow-2xs' : 'text-gray-400 hover:text-gray-700'
+          className={`flex-1 py-2 rounded-xl text-[11px] sm:text-[12px] font-bold transition-colors duration-150 border ${
+            viewMode === 'activity' 
+              ? 'bg-white dark:bg-[#26372D] text-gray-900 dark:text-[#E3ECE6] shadow-2xs border-gray-200/70 dark:border-[#2E3F34]' 
+              : 'text-gray-400 dark:text-[#8D9F94] hover:text-gray-700 dark:hover:text-[#E3ECE6] border-transparent'
           }`}
         >
           Aktivitas
         </button>
         <button
           onClick={() => setViewMode('notes')}
-          className={`flex-1 py-2 rounded-xl text-[11px] sm:text-[12px] font-bold transition-all duration-150 active:scale-95 ${
-            viewMode === 'notes' ? 'bg-white text-gray-900 shadow-2xs' : 'text-gray-400 hover:text-gray-700'
+          className={`flex-1 py-2 rounded-xl text-[11px] sm:text-[12px] font-bold transition-colors duration-150 border ${
+            viewMode === 'notes' 
+              ? 'bg-white dark:bg-[#26372D] text-gray-900 dark:text-[#E3ECE6] shadow-2xs border-gray-200/70 dark:border-[#2E3F34]' 
+              : 'text-gray-400 dark:text-[#8D9F94] hover:text-gray-700 dark:hover:text-[#E3ECE6] border-transparent'
           }`}
         >
           Catatan ({totalNotesCount})
         </button>
         <button
           onClick={() => setViewMode('highlights')}
-          className={`flex-1 py-2 rounded-xl text-[11px] sm:text-[12px] font-bold transition-all duration-150 active:scale-95 ${
-            viewMode === 'highlights' ? 'bg-white text-gray-900 shadow-2xs' : 'text-gray-400 hover:text-gray-700'
+          className={`flex-1 py-2 rounded-xl text-[11px] sm:text-[12px] font-bold transition-colors duration-150 border ${
+            viewMode === 'highlights' 
+              ? 'bg-white dark:bg-[#26372D] text-gray-900 dark:text-[#E3ECE6] shadow-2xs border-gray-200/70 dark:border-[#2E3F34]' 
+              : 'text-gray-400 dark:text-[#8D9F94] hover:text-gray-700 dark:hover:text-[#E3ECE6] border-transparent'
           }`}
         >
           Sorotan ({totalHighlightsCount})
         </button>
         <button
           onClick={() => setViewMode('labels')}
-          className={`flex-1 py-2 rounded-xl text-[11px] sm:text-[12px] font-bold transition-all duration-150 active:scale-95 ${
-            viewMode === 'labels' ? 'bg-white text-gray-900 shadow-2xs' : 'text-gray-400 hover:text-gray-700'
+          className={`flex-1 py-2 rounded-xl text-[11px] sm:text-[12px] font-bold transition-colors duration-150 border ${
+            viewMode === 'labels' 
+              ? 'bg-white dark:bg-[#26372D] text-gray-900 dark:text-[#E3ECE6] shadow-2xs border-gray-200/70 dark:border-[#2E3F34]' 
+              : 'text-gray-400 dark:text-[#8D9F94] hover:text-gray-700 dark:hover:text-[#E3ECE6] border-transparent'
           }`}
         >
           Label ({totalLabelsCount})
@@ -283,15 +291,15 @@ export default function SavedTab({ savedVerses = [], fetchSaved, onNavigateToVer
       </div>
 
       {isFilterOpen && (
-        <div className="bg-white border border-gray-200/90 rounded-2xl p-3.5 mb-5 shadow-lg space-y-3 relative z-30 animate-fadeIn">
+        <div className="bg-white dark:bg-[#1E2A23] border border-gray-200/90 dark:border-[#2E3F34] rounded-2xl p-3.5 mb-5 shadow-lg space-y-3 relative z-30 animate-fadeIn">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
               <button
                 onClick={() => setTimeFilter('all')}
                 className={`px-3 py-1 rounded-xl text-[11px] font-bold transition active:scale-95 whitespace-nowrap border ${
                   timeFilter === 'all'
-                    ? 'bg-gray-900 text-white border-gray-900'
-                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                    ? 'bg-gray-900 dark:bg-[#26372D] text-white dark:text-[#74C69D] border-gray-900 dark:border-[#74C69D]'
+                    : 'bg-white dark:bg-[#17211C] text-gray-600 dark:text-[#8D9F94] border-gray-200 dark:border-[#2E3F34] hover:bg-gray-50 dark:hover:bg-[#26372D]'
                 }`}
               >
                 Semua
@@ -300,8 +308,8 @@ export default function SavedTab({ savedVerses = [], fetchSaved, onNavigateToVer
                 onClick={() => setTimeFilter('today')}
                 className={`px-3 py-1 rounded-xl text-[11px] font-bold transition active:scale-95 whitespace-nowrap border ${
                   timeFilter === 'today'
-                    ? 'bg-gray-900 text-white border-gray-900'
-                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                    ? 'bg-gray-900 dark:bg-[#26372D] text-white dark:text-[#74C69D] border-gray-900 dark:border-[#74C69D]'
+                    : 'bg-white dark:bg-[#17211C] text-gray-600 dark:text-[#8D9F94] border-gray-200 dark:border-[#2E3F34] hover:bg-gray-50 dark:hover:bg-[#26372D]'
                 }`}
               >
                 Hari Ini
@@ -310,8 +318,8 @@ export default function SavedTab({ savedVerses = [], fetchSaved, onNavigateToVer
                 onClick={() => setTimeFilter('week')}
                 className={`px-3 py-1 rounded-xl text-[11px] font-bold transition active:scale-95 whitespace-nowrap border ${
                   timeFilter === 'week'
-                    ? 'bg-gray-900 text-white border-gray-900'
-                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                    ? 'bg-gray-900 dark:bg-[#26372D] text-white dark:text-[#74C69D] border-gray-900 dark:border-[#74C69D]'
+                    : 'bg-white dark:bg-[#17211C] text-gray-600 dark:text-[#8D9F94] border-gray-200 dark:border-[#2E3F34] hover:bg-gray-50 dark:hover:bg-[#26372D]'
                 }`}
               >
                 7 Hari
@@ -320,26 +328,26 @@ export default function SavedTab({ savedVerses = [], fetchSaved, onNavigateToVer
                 onClick={() => setTimeFilter('month')}
                 className={`px-3 py-1 rounded-xl text-[11px] font-bold transition active:scale-95 whitespace-nowrap border ${
                   timeFilter === 'month'
-                    ? 'bg-gray-900 text-white border-gray-900'
-                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                    ? 'bg-gray-900 dark:bg-[#26372D] text-white dark:text-[#74C69D] border-gray-900 dark:border-[#74C69D]'
+                    : 'bg-white dark:bg-[#17211C] text-gray-600 dark:text-[#8D9F94] border-gray-200 dark:border-[#2E3F34] hover:bg-gray-50 dark:hover:bg-[#26372D]'
                 }`}
               >
                 Bulan Ini
               </button>
             </div>
 
-            <div className="relative shrink-0" ref={sortRef}>
+           <div className="relative shrink-0" ref={sortRef}>
               <button
                 onClick={() => setIsSortOpen(prev => !prev)}
-                className="flex items-center gap-1.5 bg-[#f8f9fa] border border-gray-200/90 hover:border-gray-300 px-2.5 py-1.5 rounded-xl text-[11px] font-bold text-gray-800 transition active:scale-95 shadow-2xs"
+                className="flex items-center gap-1.5 bg-white dark:bg-[#17211C] border border-gray-200 dark:border-[#2E3F34] hover:bg-gray-50 dark:hover:bg-[#26372D] px-3 py-1 rounded-xl text-[11px] font-bold text-gray-600 dark:text-[#8D9F94] transition active:scale-95 shadow-2xs"
               >
                 <i className={currentSortObj.icon}></i>
                 <span>{currentSortObj.label}</span>
-                <i className={`ph-bold ph-caret-down text-[10px] text-gray-400 transition-transform ${isSortOpen ? 'rotate-180' : ''}`}></i>
+                <i className={`ph-bold ph-caret-down text-[10px] text-gray-400 dark:text-[#8D9F94] transition-transform ${isSortOpen ? 'rotate-180' : ''}`}></i>
               </button>
 
               {isSortOpen && (
-                <div className="absolute right-0 top-full mt-1.5 w-36 bg-white border border-gray-200 rounded-2xl shadow-2xl p-1 z-[70] animate-fadeIn">
+                <div className="absolute right-0 top-full mt-1.5 w-36 bg-white dark:bg-[#1E2A23] border border-gray-200 dark:border-[#2E3F34] rounded-2xl shadow-2xl p-1 z-[70] animate-fadeIn">
                   {SORT_OPTIONS.map((opt) => {
                     const isSelected = sortBy === opt.id;
                     return (
@@ -350,14 +358,14 @@ export default function SavedTab({ savedVerses = [], fetchSaved, onNavigateToVer
                           setIsSortOpen(false);
                         }}
                         className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-[11.5px] font-bold transition active:scale-95 ${
-                          isSelected ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-50'
+                          isSelected ? 'bg-gray-900 dark:bg-[#26372D] text-white dark:text-[#74C69D]' : 'text-gray-700 dark:text-[#E3ECE6] hover:bg-gray-50 dark:hover:bg-[#26372D]'
                         }`}
                       >
                         <div className="flex items-center gap-1.5">
                           <i className={opt.icon}></i>
                           <span>{opt.label}</span>
                         </div>
-                        {isSelected && <i className="ph-bold ph-check text-xs text-white"></i>}
+                        {isSelected && <i className="ph-bold ph-check text-xs text-white dark:text-[#74C69D]"></i>}
                       </button>
                     );
                   })}
@@ -367,14 +375,14 @@ export default function SavedTab({ savedVerses = [], fetchSaved, onNavigateToVer
           </div>
 
           {viewMode !== 'notes' && (
-            <div className="flex items-center justify-between pt-1 border-t border-gray-100">
+            <div className="flex items-center justify-between pt-1 border-t border-gray-100 dark:border-[#2E3F34]">
               <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-2 px-1">
                 <button
                   onClick={() => setColorFilter('all')}
                   className={`px-2.5 py-0.5 rounded-lg text-[10.5px] font-bold transition active:scale-95 border shrink-0 ${
                     colorFilter === 'all'
-                      ? 'bg-gray-900 text-white border-gray-900 shadow-2xs'
-                      : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                      ? 'bg-gray-900 dark:bg-[#26372D] text-white dark:text-[#74C69D] border-gray-900 dark:border-[#74C69D] shadow-2xs'
+                      : 'bg-white dark:bg-[#17211C] text-gray-500 dark:text-[#8D9F94] border-gray-200 dark:border-[#2E3F34] hover:bg-gray-50 dark:hover:bg-[#26372D]'
                   }`}
                 >
                   Semua
@@ -409,41 +417,40 @@ export default function SavedTab({ savedVerses = [], fetchSaved, onNavigateToVer
         </div>
       )}
 
-      <div key={viewMode} className="animate-fadeIn relative z-10">
+      <div key={viewMode} className="animate-tab-enter relative z-10">
         {filteredVerses.length > 0 ? (
           <div className={viewMode === 'activity' ? "relative pl-6 space-y-4" : "space-y-3"}>
             {viewMode === 'activity' && (
-              <div className="absolute left-2 top-3 bottom-3 w-px bg-gray-200/90 pointer-events-none"></div>
+              <div className="absolute left-2 top-3 bottom-3 w-px bg-gray-200/90 dark:bg-[#2E3F34] pointer-events-none"></div>
             )}
             
             {filteredVerses.map((v: any) => {
               const highlightClass = v.color ? COLOR_MAP[v.color]?.text || '' : '';
-
               return (
                 <div key={v.groupedIds[0]} className="relative">
                   {viewMode === 'activity' && (
-                    <div className="absolute -left-[21px] top-3.5 w-2.5 h-2.5 rounded-full bg-gray-900 ring-4 ring-[#fafafa]"></div>
+                    <div className="absolute -left-[21px] top-3.5 w-2.5 h-2.5 rounded-full bg-gray-900 dark:bg-[#74C69D] ring-4 ring-[#fafafa] dark:ring-[#17211C]"></div>
                   )}
 
                   <div
                     onClick={() => onNavigateToVerse && onNavigateToVerse(v.book, v.chapter, v.verseRange[0])}
-                    className={`bg-white border border-gray-200/90 rounded-2xl p-4 shadow-2xs hover:border-gray-300 active:scale-[0.985] cursor-pointer transition-transform duration-150 select-none ${
+                    className={`bg-white dark:bg-[#1E2A23] border border-gray-200/90 dark:border-[#2E3F34] rounded-2xl p-4 shadow-2xs hover:border-gray-300 dark:hover:border-[#3C5143] active:scale-[0.985] cursor-pointer transition-transform duration-150 select-none ${
                       deletingId === v.groupedIds[0] ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
                     }`}
                   >
                     <div className="flex justify-between items-center mb-2.5">
-                      <div className="flex items-center gap-1.5 text-gray-900 group-hover:text-gray-700 transition-colors">
+                      <div className="flex items-center gap-1.5 text-gray-900 dark:text-[#E3ECE6] group-hover:text-gray-700 dark:group-hover:text-white transition-colors">
                         <span className="text-[12.5px] font-extrabold tracking-tight">
                           {v.book} {v.chapter}:{v.displayVerse}
                         </span>
-                        <span className="text-[9.5px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-md border border-gray-200/70">
+                        <span className="text-[9.5px] font-bold text-gray-500 dark:text-[#8D9F94] bg-gray-100 dark:bg-[#27382F] px-1.5 py-0.5 rounded-md border border-gray-200/70 dark:border-[#354B3E]">
                           {v.version || 'AYT'}
                         </span>
-                        <i className="ph-bold ph-caret-right text-xs text-gray-300 group-hover:text-gray-600 group-hover:translate-x-0.5 transition-all"></i>
+                        <i className="ph-bold ph-caret-right text-xs text-gray-300 dark:text-[#8D9F94] group-hover:text-gray-600 dark:group-hover:text-white group-hover:translate-x-0.5 transition-all"></i>
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-medium text-gray-400">
+                        <span className="text-[11px] font-medium text-gray-400 dark:text-[#8D9F94]">
                           {formatRelativeTime(v.created_at)}
                         </span>
                         <button
@@ -451,32 +458,32 @@ export default function SavedTab({ savedVerses = [], fetchSaved, onNavigateToVer
                             e.stopPropagation();
                             removeSavedVerseGroup(v.groupedIds);
                           }}
-                          className="w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-900 active:scale-80 transition-colors"
+                          className="w-7 h-7 flex items-center justify-center rounded-full text-gray-400 dark:text-[#8D9F94] hover:text-gray-900 dark:hover:text-white active:scale-80 transition-colors"
                         >
                           <i className="ph-bold ph-trash text-xs"></i>
                         </button>
                       </div>
                     </div>
 
-                    <p className={`text-[13.5px] leading-relaxed text-gray-700 font-normal ${highlightClass}`}>
+                    <p className={`text-[13.5px] leading-relaxed text-gray-700 dark:text-[#E3ECE6] font-normal ${highlightClass}`}>
                       {v.combinedContent.map((c: any, idx: number) => (
                         <span key={c.v}>
-                          {v.verseRange.length > 1 && <sup className="text-[9.5px] font-extrabold text-gray-400 mr-0.5">{c.v}</sup>}
+                          {v.verseRange.length > 1 && <sup className="text-[9.5px] font-extrabold text-gray-400 dark:text-[#8D9F94] mr-0.5">{c.v}</sup>}
                           {c.text}{idx < v.combinedContent.length - 1 ? ' ' : ''}
                         </span>
                       ))}
                     </p>
 
                     {parseLabels(v.labels).length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mt-2.5">
+                      <div className="flex flex-wrap gap-1.5 mt-2.5 pt-2 border-t border-gray-100 dark:border-[#2E3F34]">
                         {parseLabels(v.labels).map((lbl: string) => {
                           const meta = getLabelMeta(lbl);
                           return (
                             <span
                               key={lbl}
-                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-semibold border ${meta.color}`}
+                              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10.5px] font-semibold border ${meta.color}`}
                             >
-                              <i className={`ph-bold ${meta.icon} text-xs`}></i>
+                              <i className={`ph-bold ${meta.icon} text-xs text-gray-500 dark:text-[#8D9F94]`}></i>
                               <span>{lbl}</span>
                             </span>
                           );
@@ -485,9 +492,9 @@ export default function SavedTab({ savedVerses = [], fetchSaved, onNavigateToVer
                     )}
 
                     {v.note && (
-                      <div className="mt-3 pt-2.5 border-t border-gray-100 flex items-start gap-2">
-                        <i className="ph-bold ph-text-align-left text-gray-400 text-xs mt-0.5 shrink-0"></i>
-                        <p className="text-[13px] text-gray-800 leading-relaxed font-normal whitespace-pre-wrap flex-1">
+                      <div className="mt-3 pt-2.5 border-t border-gray-100 dark:border-[#2E3F34] flex items-start gap-2">
+                        <i className="ph-bold ph-text-align-left text-gray-400 dark:text-[#8D9F94] text-xs mt-0.5 shrink-0"></i>
+                        <p className="text-[13px] text-gray-800 dark:text-[#E3ECE6] leading-relaxed font-normal whitespace-pre-wrap flex-1">
                           {v.note}
                         </p>
                       </div>
@@ -498,14 +505,14 @@ export default function SavedTab({ savedVerses = [], fetchSaved, onNavigateToVer
             })}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center pt-16 pb-10 text-center animate-fadeIn">
-            <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3 text-gray-400">
+          <div className="flex flex-col items-center justify-center pt-16 pb-10 text-center">
+            <div className="w-12 h-12 bg-gray-100 dark:bg-[#1E2A23] border border-transparent dark:border-[#2E3F34] rounded-full flex items-center justify-center mb-3 text-gray-400 dark:text-[#8D9F94]">
               <i className="ph-fill ph-bookmark-simple text-xl"></i>
             </div>
-            <h4 className="font-bold text-sm text-gray-900 mb-1">
+            <h4 className="font-bold text-sm text-gray-900 dark:text-white mb-1">
               {hasActiveFilter ? 'Tidak ada hasil' : 'Belum ada Aktivitas'}
             </h4>
-            <p className="text-xs text-gray-400 max-w-[240px] leading-relaxed mb-3">
+            <p className="text-xs text-gray-400 dark:text-[#8D9F94] max-w-[240px] leading-relaxed mb-3">
               {hasActiveFilter
                 ? 'Tidak ada ayat yang cocok dengan filter saat ini.'
                 : viewMode === 'notes'
@@ -517,7 +524,7 @@ export default function SavedTab({ savedVerses = [], fetchSaved, onNavigateToVer
             {hasActiveFilter && (
               <button
                 onClick={resetFilters}
-                className="px-3.5 py-1.5 bg-gray-900 text-white rounded-xl text-[11px] font-bold active:scale-95 transition-transform"
+                className="px-3.5 py-1.5 bg-gray-900 dark:bg-[#26372D] text-white dark:text-[#74C69D] border border-transparent dark:border-[#74C69D] rounded-xl text-[11px] font-bold active:scale-95 transition-transform"
               >
                 Reset Filter
               </button>

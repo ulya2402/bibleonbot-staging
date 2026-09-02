@@ -124,12 +124,12 @@ export interface VerseLabel {
 }
 
 export const PRESET_LABELS: VerseLabel[] = [
-  { id: 'Ketaatan', name: 'Ketaatan', icon: 'ph-shield-check', color: 'bg-[#f4f5f7] text-gray-800 border-gray-200/90' },
-  { id: 'Penyembahan', name: 'Penyembahan', icon: 'ph-hands-praying', color: 'bg-[#f4f5f7] text-gray-800 border-gray-200/90' },
-  { id: 'Dorongan', name: 'Dorongan', icon: 'ph-lightning', color: 'bg-[#f4f5f7] text-gray-800 border-gray-200/90' },
-  { id: 'Kasih', name: 'Kasih', icon: 'ph-heart', color: 'bg-[#f4f5f7] text-gray-800 border-gray-200/90' },
-  { id: 'Doa', name: 'Doa', icon: 'ph-chat-circle-dots', color: 'bg-[#f4f5f7] text-gray-800 border-gray-200/90' },
-  { id: 'Janji Allah', name: 'Janji Allah', icon: 'ph-cross', color: 'bg-[#f4f5f7] text-gray-800 border-gray-200/90' }
+  { id: 'Ketaatan', name: 'Ketaatan', icon: 'ph-shield-check', color: 'bg-[#f4f5f7] dark:bg-[#26372D] text-gray-800 dark:text-[#E3ECE6] border-gray-200/90 dark:border-[#2E3F34]' },
+  { id: 'Penyembahan', name: 'Penyembahan', icon: 'ph-hands-praying', color: 'bg-[#f4f5f7] dark:bg-[#26372D] text-gray-800 dark:text-[#E3ECE6] border-gray-200/90 dark:border-[#2E3F34]' },
+  { id: 'Dorongan', name: 'Dorongan', icon: 'ph-lightning', color: 'bg-[#f4f5f7] dark:bg-[#26372D] text-gray-800 dark:text-[#E3ECE6] border-gray-200/90 dark:border-[#2E3F34]' },
+  { id: 'Kasih', name: 'Kasih', icon: 'ph-heart', color: 'bg-[#f4f5f7] dark:bg-[#26372D] text-gray-800 dark:text-[#E3ECE6] border-gray-200/90 dark:border-[#2E3F34]' },
+  { id: 'Doa', name: 'Doa', icon: 'ph-chat-circle-dots', color: 'bg-[#f4f5f7] dark:bg-[#26372D] text-gray-800 dark:text-[#E3ECE6] border-gray-200/90 dark:border-[#2E3F34]' },
+  { id: 'Janji Allah', name: 'Janji Allah', icon: 'ph-cross', color: 'bg-[#f4f5f7] dark:bg-[#26372D] text-gray-800 dark:text-[#E3ECE6] border-gray-200/90 dark:border-[#2E3F34]' }
 ];
 
 export const parseLabels = (raw: any): string[] => {
@@ -156,6 +156,6 @@ export const getLabelMeta = (labelName: string): VerseLabel => {
     id: labelName,
     name: labelName,
     icon: 'ph-tag',
-    color: 'bg-[#f4f5f7] text-gray-800 border-gray-200/90'
+    color: 'bg-[#f4f5f7] dark:bg-[#26372D] text-gray-800 dark:text-[#E3ECE6] border-gray-200/90 dark:border-[#2E3F34]'
   };
 };

@@ -1,4 +1,4 @@
-import { useState, useEffect, memo } from 'react';
+import { useState, useEffect, useRef, useMemo, memo } from 'react';
 import type { BibleVersion } from '../types/bible';
 import { parseLabels, getLabelMeta } from '../types/bible';
 
@@ -52,7 +52,33 @@ function BibleTabComponent({
   toggleTheme
 }: BibleTabProps) {
   const [verseSearch, setVerseSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (isSearchOpen) {
+      const focusTimer = setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(focusTimer);
+    }
+  }, [isSearchOpen]);
+
+  useEffect(() => {
+    if (!verseSearch.trim()) {
+      setDebouncedSearch('');
+      setIsSearching(false);
+      return;
+    }
+    setIsSearching(true);
+    const handler = setTimeout(() => {
+      setDebouncedSearch(verseSearch.trim());
+      setIsSearching(false);
+    }, 180);
+    return () => clearTimeout(handler);
+  }, [verseSearch]);
 
   useEffect(() => {
     const tg = (window as any).Telegram?.WebApp;
@@ -190,9 +216,13 @@ function BibleTabComponent({
     });
   };
 
-  const filteredVerses = bibleVerses.filter((v: any) =>
-    v.content.toLowerCase().includes(verseSearch.toLowerCase()) || String(v.verse) === verseSearch
-  );
+  const filteredVerses = useMemo(() => {
+    if (!debouncedSearch) return bibleVerses;
+    const searchLower = debouncedSearch.toLowerCase();
+    return bibleVerses.filter((v: any) =>
+      v.content.toLowerCase().includes(searchLower) || String(v.verse) === debouncedSearch
+    );
+  }, [bibleVerses, debouncedSearch]);
 
   useEffect(() => {
     if (highlightedVerse && !isLoadingBible && bibleVerses.length > 0) {
@@ -280,7 +310,7 @@ function BibleTabComponent({
               }
               setIsSearchOpen(prev => !prev);
             }}
-            className={`w-8 h-8 flex items-center justify-center rounded-full shadow-xs transition-colors active:scale-90 shrink-0 ml-0.5 border border-gray-200/80 dark:border-[#2E3F34] ${
+            className={`w-8 h-8 flex items-center justify-center rounded-full shadow-xs transition active:scale-90 shrink-0 ml-0.5 border border-gray-200/80 dark:border-[#2E3F34] ${
               isSearchOpen ? 'bg-gray-900 dark:bg-[#26372D] text-white dark:text-[#74C69D]' : 'bg-white dark:bg-[#24332A] text-gray-600 dark:text-[#E3ECE6] hover:bg-gray-50 dark:hover:bg-[#2B3C32]'
             }`}
           >
@@ -299,16 +329,15 @@ function BibleTabComponent({
         </div>
 
         <div 
-          className={`transition-all duration-200 ease-[cubic-bezier(0.22,1.15,0.35,1)] overflow-hidden max-w-[420px] mx-auto ${
-            isSearchOpen 
-              ? 'max-h-14 opacity-100 mt-2.5 translate-y-0' 
-              : 'max-h-0 opacity-0 mt-0 -translate-y-2 pointer-events-none'
+          className={`overflow-hidden max-w-[420px] mx-auto transition-all duration-200 ${
+            isSearchOpen ? 'max-h-12 opacity-100 mt-2.5' : 'max-h-0 opacity-0 mt-0 pointer-events-none'
           }`}
         >
           <div className="flex items-center gap-2 py-0.5">
             <div className="relative flex-1">
-              <i className="ph-bold ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#8D9F94] text-xs"></i>
+              <i className="ph-bold ph-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#8D9F94] text-xs"></i>
               <input
+                ref={searchInputRef}
                 type="text"
                 placeholder="Cari ayat di pasal ini..."
                 value={verseSearch}
@@ -318,12 +347,21 @@ function BibleTabComponent({
                     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
                     setIsSearchOpen(false);
                     setVerseSearch('');
+                    setDebouncedSearch('');
+                    setIsSearching(false);
                   }
                 }}
-                className="w-full bg-[#f4f5f7] dark:bg-[#1E2A23] border border-gray-200/60 dark:border-[#2E3F34] text-gray-800 dark:text-[#E3ECE6] placeholder-gray-400 dark:placeholder-[#6C8074] rounded-xl py-2 pl-8 pr-7 text-[12px] font-medium focus:outline-none focus:bg-[#eaedf2] dark:focus:bg-[#26372D]"
+                className="w-full bg-[#f4f5f7] dark:bg-[#1E2A23] border border-gray-200/60 dark:border-[#2E3F34] text-gray-800 dark:text-[#E3ECE6] placeholder-gray-400 dark:placeholder-[#6C8074] rounded-xl py-2 pl-9 pr-8 text-[12px] font-medium focus:outline-none focus:bg-[#eaedf2] dark:focus:bg-[#26372D]"
               />
               {verseSearch && (
-                <button onClick={() => setVerseSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-[#8D9F94] dark:hover:text-[#E3ECE6]">
+                <button 
+                  onClick={() => {
+                    setVerseSearch('');
+                    setDebouncedSearch('');
+                    setIsSearching(false);
+                  }} 
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-[#8D9F94] dark:hover:text-[#E3ECE6]"
+                >
                   <i className="ph-bold ph-x text-xs"></i>
                 </button>
               )}
@@ -333,6 +371,8 @@ function BibleTabComponent({
                 if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
                 setIsSearchOpen(false);
                 setVerseSearch('');
+                setDebouncedSearch('');
+                setIsSearching(false);
               }}
               className="text-[12px] font-bold text-gray-500 dark:text-[#8D9F94] hover:text-gray-900 dark:hover:text-[#E3ECE6] px-2 py-1.5 rounded-lg active:scale-95 shrink-0"
             >
@@ -348,35 +388,47 @@ function BibleTabComponent({
             <div className="animate-pulse space-y-5 py-2 mt-4">
               {[1, 2, 3, 4, 5, 6].map((i) => (
                 <div key={i} className="flex gap-3 px-3">
-                  <div className="w-5 h-4 bg-gray-200 dark:bg-[#4E5156] rounded-md shrink-0 mt-1"></div>
+                  <div className="w-5 h-4 bg-gray-200 dark:bg-[#2E3F34] rounded-md shrink-0 mt-1"></div>
                   <div className="flex-1 space-y-2.5">
-                    <div className="h-4 bg-gray-200 dark:bg-[#4E5156] rounded-md w-full"></div>
-                    <div className="h-4 bg-gray-200 dark:bg-[#4E5156] rounded-md w-5/6"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-[#2E3F34] rounded-md w-full"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-[#2E3F34] rounded-md w-5/6"></div>
                   </div>
                 </div>
               ))}
             </div>
           ) : isScopeMismatch ? (
-            <div className="text-center py-12 px-4 bg-white dark:bg-[#46484D] rounded-2xl border border-gray-100 dark:border-[#55585E] mt-4 shadow-sm">
+            <div className="text-center py-12 px-4 bg-white dark:bg-[#1E2A23] rounded-2xl border border-gray-100 dark:border-[#2E3F34] mt-4 shadow-sm">
               <i className="ph-duotone ph-book-bookmark text-4xl text-gray-300 dark:text-gray-500 mb-3"></i>
-              <h4 className="font-bold text-gray-900 dark:text-[#EAECEE] text-sm mb-1">{currentVersion.name}</h4>
-              <p className="text-xs text-gray-500 dark:text-[#A6ACB3] max-w-[280px] mx-auto leading-relaxed">
+              <h4 className="font-bold text-gray-900 dark:text-[#E3ECE6] text-sm mb-1">{currentVersion.name}</h4>
+              <p className="text-xs text-gray-500 dark:text-[#8D9F94] max-w-[280px] mx-auto leading-relaxed">
                 Versi ini hanya mencakup Perjanjian Baru (PB). Silakan pilih kitab di Perjanjian Baru atau ganti versi terjemahan.
               </p>
               <div className="flex justify-center gap-2 mt-4">
                 <button
                   onClick={() => { setSelectorStep('book'); setIsSelectorOpen(true); }}
-                  className="px-4 py-2 bg-gray-900 dark:bg-[#28292B] text-white border border-transparent dark:border-[#55585E] rounded-xl text-xs font-bold transition active:scale-95"
+                  className="px-4 py-2 bg-gray-900 dark:bg-[#26372D] text-white border border-transparent dark:border-[#74C69D] rounded-xl text-xs font-bold transition active:scale-95"
                 >
                   Pilih Kitab PB
                 </button>
                 <button
                   onClick={() => { setSelectorStep('version'); setIsSelectorOpen(true); }}
-                  className="px-4 py-2 bg-gray-100 dark:bg-[#3B3D40] text-gray-800 dark:text-[#EAECEE] border border-gray-200 dark:border-[#55585E] rounded-xl text-xs font-bold transition active:scale-95"
+                  className="px-4 py-2 bg-gray-100 dark:bg-[#26372D] text-gray-800 dark:text-[#E3ECE6] border border-gray-200 dark:border-[#2E3F34] rounded-xl text-xs font-bold transition active:scale-95"
                 >
                   Ganti Terjemahan
                 </button>
               </div>
+            </div>
+          ) : isSearching ? (
+            <div className="animate-pulse space-y-4 py-2 mt-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex gap-3 px-3">
+                  <div className="w-5 h-4 bg-gray-200 dark:bg-[#2E3F34] rounded-md shrink-0 mt-1"></div>
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-gray-200 dark:bg-[#2E3F34] rounded-md w-full"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-[#2E3F34] rounded-md w-4/6"></div>
+                  </div>
+                </div>
+              ))}
             </div>
           ) : filteredVerses.length > 0 ? (
             filteredVerses.map((verseData: any, idx: number) => {

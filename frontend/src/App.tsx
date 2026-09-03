@@ -266,7 +266,8 @@ export default function App() {
         tg.expand();
         try { tg.enableClosingConfirmation?.(); } catch (e) {}
         try { if (!tg.isVersionAtLeast || tg.isVersionAtLeast('8.0')) { tg.requestFullscreen?.(); tg.disableVerticalSwipes?.(); } } catch (e) {}
-        try { tg.setHeaderColor?.('#fafafa'); tg.setBackgroundColor?.('#fafafa'); } catch (e) {}
+        const initialBg = isDark ? '#17211C' : '#fafafa';
+        try { tg.setHeaderColor?.(initialBg); tg.setBackgroundColor?.(initialBg); } catch (e) {}
 
         const applyInsets = () => {
           const root = document.documentElement.style;
@@ -1170,20 +1171,20 @@ export default function App() {
       )}
 
       {isNoteSheetOpen && (
-        <div className="fixed inset-0 z-[110] flex flex-col justify-end pointer-events-auto overflow-hidden">
+        <div className="fixed inset-0 z-[110] flex flex-col justify-end pointer-events-auto">
           <div 
             onClick={closeNoteSheet}
-            className={`absolute inset-0 bg-black/40 dark:bg-black/60 transition-opacity ${
+            className={`fixed inset-0 bg-black/45 dark:bg-black/65 transition-colors ${
               isNoteSheetClosing ? 'backdrop-exit' : 'backdrop-enter'
             }`}
           />
           <div 
-            className={`sheet-container relative w-full max-w-[480px] mx-auto bg-[#f8f9fa] dark:bg-[#1E2A23] h-[72vh] sm:h-[600px] max-h-[85%] flex flex-col shadow-2xl border-t border-x border-gray-200 dark:border-[#2E3F34] ${
+            className={`sheet-container relative w-full max-w-[480px] mx-auto bg-[#f8f9fa] dark:bg-[#1E2A23] h-[75vh] max-h-[640px] flex flex-col border-t border-x border-gray-200 dark:border-[#2E3F34] ${
               isNoteSheetClosing ? 'sheet-exit' : 'sheet-enter'
             }`}
           >
             <div className="w-10 h-1 bg-gray-300 dark:bg-[#2E3F34] rounded-full mx-auto mt-3 mb-1 shrink-0"></div>
-            
+
             <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 dark:border-[#2E3F34] shrink-0 bg-[#f8f9fa] dark:bg-[#1E2A23]">
               <button 
                 onClick={closeNoteSheet}
@@ -1192,7 +1193,7 @@ export default function App() {
                 Batal
               </button>
               
-              <div className="flex items-center gap-1.5 px-3.5 py-1 bg-white dark:bg-[#26372D] border border-gray-200/90 dark:border-[#2E3F34] rounded-full shadow-2xs">
+              <div className="flex items-center gap-1.5 px-3.5 py-1 bg-white dark:bg-[#26372D] border border-gray-200/90 dark:border-[#2E3F34] rounded-full">
                 <i className="ph-fill ph-book-open-text text-gray-900 dark:text-[#74C69D] text-xs"></i>
                 <span className="text-[12.5px] font-extrabold text-gray-900 dark:text-[#E3ECE6] tracking-tight">
                   {noteSheetData ? `${noteSheetData.book} ${noteSheetData.chapter}:${noteSheetData.verse}` : 'Jurnal Renungan'}
@@ -1201,15 +1202,15 @@ export default function App() {
 
               <button 
                 onClick={() => saveVerseData(null, noteInput)}
-                className="px-4 py-1.5 bg-gray-900 dark:bg-[#26372D] text-white dark:text-[#74C69D] border border-transparent dark:border-[#74C69D] rounded-full text-[13px] font-bold hover:bg-black active:scale-90 transition-transform shadow-xs select-none"
+                className="px-4 py-1.5 bg-gray-900 dark:bg-[#26372D] text-white dark:text-[#74C69D] border border-transparent dark:border-[#74C69D] rounded-full text-[13px] font-bold hover:bg-black active:scale-90 transition-transform select-none"
               >
                 Selesai
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 no-scrollbar bg-[#f8f9fa] dark:bg-[#1E2A23]">
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 no-scrollbar">
               {noteSheetData?.content && (
-                <div className="bg-white dark:bg-[#17211C] border border-gray-200/90 dark:border-[#2E3F34] rounded-2xl p-3.5 shadow-2xs">
+                <div className="bg-white dark:bg-[#17211C] border border-gray-200/90 dark:border-[#2E3F34] rounded-2xl p-3.5">
                   <div className="flex items-center gap-1.5 mb-1 text-gray-400 dark:text-[#8D9F94]">
                     <i className="ph-bold ph-quotes text-xs"></i>
                     <span className="text-[9.5px] font-extrabold uppercase tracking-wider">Ayat Referensi</span>
@@ -1220,21 +1221,23 @@ export default function App() {
                 </div>
               )}
 
-              <div className="bg-white dark:bg-[#17211C] border border-gray-200/90 dark:border-[#2E3F34] rounded-2xl p-4 shadow-2xs space-y-3 transition-colors focus-within:border-gray-400 dark:focus-within:border-[#74C69D]">
+              <div className="bg-white dark:bg-[#17211C] border border-gray-200/90 dark:border-[#2E3F34] rounded-2xl p-4 space-y-3 transition-colors focus-within:border-gray-400 dark:focus-within:border-[#74C69D]">
                 <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#2E3F34] pb-2">
                   <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 dark:text-[#8D9F94]">
-                    {noteSheetData?.note ? 'Catatan Tersimpan' : 'Tulis kan'}
+                    {noteSheetData?.note ? 'Catatan Tersimpan' : 'Tulis Catatan'}
                   </span>
                   <span className="text-[10px] font-bold text-gray-400 dark:text-[#8D9F94]">
                     {noteInput.length} karakter
                   </span>
                 </div>
+
                 <textarea
                   value={noteInput}
                   onChange={(e) => setNoteInput(e.target.value)}
                   placeholder="Ketik renungan, doa, atau yang lainya disini..."
                   className="w-full bg-transparent text-[14.5px] leading-relaxed text-gray-900 dark:text-[#E3ECE6] placeholder-gray-400 dark:placeholder-[#6C8074] focus:outline-none transition-none resize-none h-36"
                 />
+
                 {noteSheetData?.note && (
                   <div className="flex justify-end pt-1 border-t border-gray-100 dark:border-[#2E3F34]">
                     <button
@@ -1248,7 +1251,7 @@ export default function App() {
                 )}
               </div>
 
-              <div className="space-y-2 pt-1">
+              <div className="space-y-2 pt-1 pb-6">
                 <div className="flex items-center justify-between px-1">
                   <div className="flex items-center gap-1.5 text-gray-500 dark:text-[#8D9F94]">
                     <i className="ph-bold ph-clock-counter-clockwise text-xs"></i>
@@ -1262,7 +1265,7 @@ export default function App() {
                 </div>
 
                 {savedVerses.filter((v: any) => v.note && v.note.trim() !== '').length > 0 ? (
-                  <div className="bg-white dark:bg-[#17211C] border border-gray-200/90 dark:border-[#2E3F34] rounded-2xl divide-y divide-gray-100 dark:divide-[#2E3F34] overflow-hidden shadow-2xs">
+                  <div className="bg-white dark:bg-[#17211C] border border-gray-200/90 dark:border-[#2E3F34] rounded-2xl divide-y divide-gray-100 dark:divide-[#2E3F34] overflow-hidden">
                     {savedVerses
                       .filter((v: any) => v.note && v.note.trim() !== '')
                       .slice(0, 8)
@@ -1313,12 +1316,12 @@ export default function App() {
         <div className="fixed inset-0 z-[110] flex flex-col justify-end pointer-events-auto">
           <div 
             onClick={closeLabelSheet}
-            className={`fixed inset-0 bg-black/45 transition-colors ${
+            className={`fixed inset-0 bg-black/45 dark:bg-black/65 transition-colors ${
               isLabelSheetClosing ? 'backdrop-exit' : 'backdrop-enter'
             }`}
           />
           <div 
-            className={`sheet-container relative w-full max-w-[480px] mx-auto bg-[#f8f9fa] dark:bg-[#1E2A23] h-[75vh] max-h-[640px] flex flex-col shadow-[0_-12px_36px_rgba(0,0,0,0.15)] border-t border-x border-gray-200 dark:border-[#2E3F34] ${
+            className={`sheet-container relative w-full max-w-[480px] mx-auto bg-[#f8f9fa] dark:bg-[#1E2A23] h-[75vh] max-h-[640px] flex flex-col border-t border-x border-gray-200 dark:border-[#2E3F34] ${
               isLabelSheetClosing ? 'sheet-exit' : 'sheet-enter'
             }`}
           >
@@ -1332,7 +1335,7 @@ export default function App() {
                 Batal
               </button>
               
-              <div className="flex items-center gap-1.5 px-3.5 py-1 bg-white dark:bg-[#26372D] border border-gray-200/90 dark:border-[#2E3F34] rounded-full shadow-2xs">
+              <div className="flex items-center gap-1.5 px-3.5 py-1 bg-white dark:bg-[#26372D] border border-gray-200/90 dark:border-[#2E3F34] rounded-full">
                 <i className="ph-fill ph-tag text-gray-900 dark:text-[#74C69D] text-xs"></i>
                 <span className="text-[12.5px] font-extrabold text-gray-900 dark:text-[#E3ECE6] tracking-tight">
                   {labelSheetData ? `${labelSheetData.book} ${labelSheetData.chapter}:${labelSheetData.verse}` : 'Kelola Label'}
@@ -1341,7 +1344,7 @@ export default function App() {
 
               <button 
                 onClick={() => saveVerseData(null, null, selectedLabelsForSheet)}
-                className="px-4 py-1.5 bg-gray-900 dark:bg-[#26372D] text-white dark:text-[#74C69D] border border-transparent dark:border-[#74C69D] rounded-full text-[13px] font-bold hover:bg-black active:scale-90 transition-transform shadow-xs select-none"
+                className="px-4 py-1.5 bg-gray-900 dark:bg-[#26372D] text-white dark:text-[#74C69D] border border-transparent dark:border-[#74C69D] rounded-full text-[13px] font-bold hover:bg-black active:scale-90 transition-transform select-none"
               >
                 Selesai
               </button>
@@ -1349,7 +1352,7 @@ export default function App() {
 
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 pb-36 no-scrollbar">
               {labelSheetData?.content && (
-                <div className="bg-white dark:bg-[#17211C] border border-gray-200/90 dark:border-[#2E3F34] rounded-2xl p-3.5 shadow-2xs">
+                <div className="bg-white dark:bg-[#17211C] border border-gray-200/90 dark:border-[#2E3F34] rounded-2xl p-3.5">
                   <div className="flex items-center gap-1.5 mb-1 text-gray-400 dark:text-[#8D9F94]">
                     <i className="ph-bold ph-quotes text-xs"></i>
                     <span className="text-[9.5px] font-extrabold uppercase tracking-wider">Ayat Referensi</span>
@@ -1360,7 +1363,7 @@ export default function App() {
                 </div>
               )}
 
-              <div className="bg-white dark:bg-[#17211C] border border-gray-200/90 dark:border-[#2E3F34] rounded-2xl p-3.5 shadow-2xs space-y-2.5">
+              <div className="bg-white dark:bg-[#17211C] border border-gray-200/90 dark:border-[#2E3F34] rounded-2xl p-3.5 space-y-2.5">
                 <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 dark:text-[#8D9F94]">
                   Buat Label Baru
                 </span>
@@ -1371,11 +1374,6 @@ export default function App() {
                       type="text"
                       value={customLabelInput}
                       onChange={(e) => setCustomLabelInput(e.target.value)}
-                      onFocus={(e) => {
-                        setTimeout(() => {
-                          e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        }, 250);
-                      }}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           e.preventDefault();
@@ -1397,7 +1395,7 @@ export default function App() {
                 </div>
               </div>
 
-             <div className="bg-white dark:bg-[#17211C] border border-gray-200/90 dark:border-[#2E3F34] rounded-2xl p-4 shadow-2xs space-y-3">
+              <div className="bg-white dark:bg-[#17211C] border border-gray-200/90 dark:border-[#2E3F34] rounded-2xl p-4 space-y-3">
                 <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#2E3F34] pb-2">
                   <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 dark:text-[#8D9F94]">
                     Pilih Label
@@ -1427,8 +1425,8 @@ export default function App() {
                         type="button"
                         onClick={() => handleToggleLabel(preset.name)}
                         className={`p-3 rounded-xl border flex items-center justify-between transition-all duration-150 active:scale-95 text-left ${
-                          isChecked 
-                            ? 'bg-gray-900 dark:bg-[#26372D] text-white dark:text-[#74C69D] border-gray-900 dark:border-[#74C69D] shadow-sm' 
+                          isChecked
+                            ? 'bg-gray-900 dark:bg-[#26372D] text-white dark:text-[#74C69D] border-gray-900 dark:border-[#74C69D]'
                             : 'bg-gray-50/70 dark:bg-[#1E2A23] hover:bg-gray-100/80 dark:hover:bg-[#26372D] text-gray-800 dark:text-[#E3ECE6] border-gray-200/70 dark:border-[#2E3F34]'
                         }`}
                       >
@@ -1458,7 +1456,6 @@ export default function App() {
                         {isEditingCustomLabels ? 'Selesai' : 'Kelola'}
                       </button>
                     </div>
-
                     <div className="flex flex-wrap gap-1.5">
                       {availableCustomLabels
                         .filter(c => !PRESET_LABELS.some((p: VerseLabel) => p.name.toLowerCase() === c.toLowerCase()))
@@ -1486,7 +1483,7 @@ export default function App() {
                               className={`relative cursor-pointer select-none px-3 py-1.5 rounded-xl border text-[11.5px] font-bold flex items-center gap-1.5 transition-all active:scale-95 ${
                                 isEditingCustomLabels ? 'animate-jiggle border-rose-300 dark:border-rose-700/60 bg-rose-50 dark:bg-rose-950/40 text-rose-800 dark:text-rose-300 pr-2.5' :
                                 isChecked
-                                  ? 'bg-gray-900 dark:bg-[#26372D] text-white dark:text-[#74C69D] border-gray-900 dark:border-[#74C69D] shadow-xs'
+                                  ? 'bg-gray-900 dark:bg-[#26372D] text-white dark:text-[#74C69D] border-gray-900 dark:border-[#74C69D]'
                                   : 'bg-[#f4f5f7] dark:bg-[#1E2A23] text-gray-800 dark:text-[#E3ECE6] border-gray-200/90 dark:border-[#2E3F34] hover:bg-gray-200/60 dark:hover:bg-[#26372D]'
                               }`}
                             >

@@ -11,15 +11,11 @@ html.dark {
 }
 
 html, body {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  width: 100%;
-  height: 100%;
   margin: 0;
   padding: 0;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   background-color: #fafafa;
   color: #111827;
@@ -167,18 +163,15 @@ html.dark textarea {
 }
 
 .sheet-enter {
-  animation: sheetSlideUp 0.34s cubic-bezier(0.22, 1.15, 0.35, 1) forwards;
-  will-change: transform;
+  animation: sheetSlideUp 0.26s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .sheet-exit {
-  animation: sheetSlideDown 0.22s cubic-bezier(0.32, 0, 0.67, 0) forwards;
-  will-change: transform;
+  animation: sheetSlideDown 0.2s cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 
 .animate-book-item {
   animation: bookItemPop 0.18s cubic-bezier(0.22, 1.12, 0.36, 1) forwards;
-  will-change: transform, opacity;
 }
 
 @keyframes backdropFadeIn {
@@ -192,22 +185,18 @@ html.dark textarea {
 }
 
 .sheet-container {
-  overflow: hidden;
-  border-top-left-radius: 2rem;
-  border-top-right-radius: 2rem;
-  transform: translate3d(0, 0, 0);
-  -webkit-transform: translate3d(0, 0, 0);
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  will-change: transform;
+  border-top-left-radius: 1.75rem;
+  border-top-right-radius: 1.75rem;
 }
 
 .backdrop-enter {
-  animation: backdropFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: backdropFadeIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: ofpacity;
 }
 
 .backdrop-exit {
   animation: backdropFadeOut 0.2s ease-in forwards;
+  will-change: opacity;
 }
 
 @keyframes verseSpotlight {

@@ -4,6 +4,7 @@ import HomeTab from './tabs/HomeTab';
 import BibleTab from './tabs/BibleTab';
 import SavedTab from './tabs/SavedTab';
 import AdminTab from './tabs/AdminTab';
+import DiscoverTab from './tabs/DiscoverTab';
 import { 
   BIBLE_LANGUAGES, 
   ALL_BIBLE_VERSIONS, 
@@ -127,19 +128,12 @@ export default function App() {
   const [isLoadingBible, setIsLoadingBible] = useState(false);
 
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
-  const [isSelectorClosing, setIsSelectorClosing] = useState(false);
   const [selectorStep, setSelectorStep] = useState<'book' | 'chapter' | 'version'>('book');
   const [tempSelectedBook, setTempSelectedBook] = useState(BIBLE_BOOKS[0]);
-  const [searchQuery, setSearchQuery] = useState('');
 
   const closeSelector = () => {
-    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
-    setIsSelectorClosing(true);
-    setTimeout(() => {
-      setIsSelectorOpen(false);
-      setIsSelectorClosing(false);
-      setSearchQuery('');
-    }, 220);
+    setIsSelectorOpen(false);
+    setSelectorStep('book');
   };
   const [highlightedVerse, setHighlightedVerse] = useState<number | null>(null);
 
@@ -276,6 +270,7 @@ export default function App() {
   const scrollRafId = useRef<number | null>(null);
   const mainRef = useRef<HTMLElement | null>(null);
 
+  
   useEffect(() => {
     return () => {
       if (scrollRafId.current !== null) {
@@ -364,22 +359,19 @@ export default function App() {
         const initialBg = isDark ? '#17211C' : '#fafafa';
         try { tg.setHeaderColor?.(initialBg); tg.setBackgroundColor?.(initialBg); } catch (e) {}
 
-        const applyViewportAndInsets = () => {
+        const applyInsets = () => {
           const root = document.documentElement.style;
           const safe = tg.safeAreaInset || {};
           const content = tg.contentSafeAreaInset || {};
-          const currentHeight = tg.viewportHeight || window.innerHeight;
-          root.setProperty('--tg-viewport-height', `${currentHeight}px`);
           root.setProperty('--tg-safe-top', `${safe.top || 0}px`);
           root.setProperty('--tg-safe-bottom', `${safe.bottom || 0}px`);
           root.setProperty('--tg-content-top', `${content.top || 0}px`);
           root.setProperty('--tg-content-bottom', `${content.bottom || 0}px`);
         };
-        applyViewportAndInsets();
-        tg.onEvent?.('safeAreaChanged', applyViewportAndInsets);
-        tg.onEvent?.('contentSafeAreaChanged', applyViewportAndInsets);
-        tg.onEvent?.('viewportChanged', applyViewportAndInsets);
-        window.addEventListener('resize', applyViewportAndInsets);
+        applyInsets();
+        tg.onEvent?.('safeAreaChanged', applyInsets);
+        tg.onEvent?.('contentSafeAreaChanged', applyInsets);
+        tg.onEvent?.('viewportChanged', applyInsets);
 
         const currentUserId = tg.initDataUnsafe?.user?.id?.toString();
         const firstName = tg.initDataUnsafe?.user?.first_name;
@@ -404,10 +396,9 @@ export default function App() {
         }
 
         cleanupInsets = () => {
-          tg.offEvent?.('safeAreaChanged', applyViewportAndInsets);
-          tg.offEvent?.('contentSafeAreaChanged', applyViewportAndInsets);
-          tg.offEvent?.('viewportChanged', applyViewportAndInsets);
-          window.removeEventListener('resize', applyViewportAndInsets);
+          tg.offEvent?.('safeAreaChanged', applyInsets);
+          tg.offEvent?.('contentSafeAreaChanged', applyInsets);
+          tg.offEvent?.('viewportChanged', applyInsets);
         };
       }
     } catch (error) {}
@@ -964,11 +955,9 @@ export default function App() {
     }
   };
 
-  const filteredBooks = availableBooks.filter(b => b.name.toLowerCase().includes(searchQuery.toLowerCase()));
-
   return (
     <div id="app-container" className={`flex flex-col h-full bg-[#fafafa] dark:bg-[#17211C] text-gray-900 dark:text-[#E3ECE6] ${isDark ? 'dark' : ''}`}>
-      {activeTab !== 'bible' && (
+      {activeTab !== 'bible' && !isSelectorOpen && (
         <div 
           className="absolute top-0 left-0 right-0 bg-[#fafafa]/85 dark:bg-[#17211C]/85 backdrop-blur-xl z-[60] pointer-events-none transition-colors duration-250"
           style={{ height: 'calc(max(var(--tg-safe-top, 0px), env(safe-area-inset-top, 0px)) + 3rem)' }}
@@ -978,7 +967,7 @@ export default function App() {
       <main 
         ref={mainRef}
         onScroll={handleMainScroll}
-        className="flex-1 scroll-area no-scrollbar relative" 
+        className={isSelectorOpen ? 'hidden' : 'flex-1 scroll-area no-scrollbar relative'} 
         style={{ 
           paddingTop: activeTab === 'bible' ? 0 : 'calc(max(var(--tg-safe-top, 0px), env(safe-area-inset-top, 0px)) + 3rem)',
           paddingBottom: 'calc(max(var(--tg-safe-bottom, 0px), env(safe-area-inset-bottom, 0px)) + 7rem)'
@@ -1033,47 +1022,37 @@ export default function App() {
           />
         )}
 
+        {activeTab === 'discover' && (
+          <DiscoverTab
+            books={BIBLE_BOOKS}
+            onNavigateToVerse={handleNavigateToVerse}
+            isDark={isDark}
+          />
+        )}
         {activeTab === 'saved' && <SavedTab savedVerses={savedVerses} fetchSaved={fetchSavedData} onNavigateToVerse={handleNavigateToVerse} />}
         {activeTab === 'admin' && <AdminTab triggerAction={triggerAction} refreshHomeData={fetchHomeData} news={news} communities={communities} channels={channels} dailyVerse={dailyVerse} setActiveTab={setActiveTab} />}
       </main>
 
       {isSelectorOpen && (
-        <div className="fixed inset-0 z-[100] flex flex-col justify-end pointer-events-auto overflow-hidden">
-          <div 
-            className={`absolute inset-0 bg-black/40 dark:bg-black/60 transition-opacity ${
-              isSelectorClosing ? 'backdrop-exit' : 'backdrop-enter'
-            }`} 
-            onClick={closeSelector}
-          />
+        <div className="absolute inset-0 z-[100] flex flex-col justify-end">
+          <div className="absolute inset-0 bg-gray-900/60 dark:bg-black/70 transition-opacity" onClick={closeSelector}></div>
           
-          <div className={`relative bg-white dark:bg-[#1E2A23] w-full max-w-[500px] mx-auto rounded-t-[1.75rem] h-[85vh] max-h-[85dvh] flex flex-col shadow-2xl border-t border-x border-gray-200 dark:border-[#2E3F34] overflow-hidden ${
-            isSelectorClosing ? 'sheet-exit' : 'sheet-enter'
-          }`}>
-            <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-[#2E3F34] shrink-0 bg-white dark:bg-[#1E2A23] rounded-t-[1.75rem]">
+          <div className="relative bg-white dark:bg-[#1E2A23] w-full max-w-[500px] mx-auto rounded-t-[1.5rem] h-[85vh] flex flex-col shadow-2xl animate-[fadeIn_0.25s_ease-out]">
+            <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-[#2E3F34] shrink-0 bg-white dark:bg-[#1E2A23] rounded-t-[1.5rem]">
               {selectorStep === 'chapter' ? (
-                <button onClick={() => setSelectorStep('book')} className="p-2 -ml-2 text-gray-500 dark:text-[#8D9F94] hover:bg-gray-100 dark:hover:bg-[#27382F] rounded-full transition"><i className="ph-bold ph-arrow-left text-xl"></i></button>
+                <button onClick={() => setSelectorStep('book')} className="p-2 -ml-2 text-gray-500 dark:text-[#8D9F94] hover:bg-gray-100 dark:hover:bg-[#27382F] rounded-full transition">
+                  <i className="ph-bold ph-arrow-left text-xl"></i>
+                </button>
               ) : (
                 <div className="w-8"></div>
               )}
               <h3 className="font-extrabold text-lg text-gray-900 dark:text-[#E3ECE6]">
                 {selectorStep === 'book' ? 'Pilih Kitab' : selectorStep === 'version' ? 'Pilih Terjemahan' : `Pasal ${tempSelectedBook.name}`}
               </h3>
-              <button 
-                onClick={closeSelector} 
-                className="p-2 -mr-2 text-gray-500 dark:text-[#8D9F94] hover:bg-gray-100 dark:hover:bg-[#27382F] rounded-full transition"
-              >
+              <button onClick={closeSelector} className="p-2 -mr-2 text-gray-500 dark:text-[#8D9F94] hover:bg-gray-100 dark:hover:bg-[#27382F] rounded-full transition">
                 <i className="ph-bold ph-x text-xl"></i>
               </button>
             </div>
-
-            {selectorStep === 'book' && (
-              <div className="px-5 py-3 border-b border-gray-100 dark:border-[#2E3F34] shrink-0 bg-white dark:bg-[#1E2A23]">
-                <div className="relative">
-                  <i className="ph-bold ph-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#8D9F94]"></i>
-                  <input type="text" placeholder="Cari kitab (cth: Yohanes)..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-gray-50 dark:bg-[#17211C] text-gray-900 dark:text-[#E3ECE6] placeholder-gray-400 dark:placeholder-[#6C8074] rounded-xl py-3 pl-10 pr-4 text-[13px] font-medium focus:outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-[#374F40] transition border border-transparent dark:border-[#2E3F34]" />
-                </div>
-              </div>
-            )}
 
             <div className="flex-1 overflow-y-auto p-5 scroll-area no-scrollbar bg-[#fafafa] dark:bg-[#17211C]">
               {selectorStep === 'version' ? (
@@ -1088,7 +1067,7 @@ export default function App() {
                         {group.versions.map((ver) => {
                           const isSelected = currentVersion.id === ver.id;
                           return (
-                            <button 
+                            <button
                               key={ver.id}
                               onClick={() => handleSelectVersion(ver)}
                               className={`w-full p-4 rounded-2xl text-left transition border flex justify-between items-center ${
@@ -1122,17 +1101,17 @@ export default function App() {
                 </div>
               ) : selectorStep === 'book' ? (
                 <div className="space-y-6">
-                  {currentVersion.testamentScope !== 'NT' && filteredBooks.filter(b => b.test === 'PL').length > 0 && (
+                  {currentVersion.testamentScope !== 'NT' && availableBooks.filter(b => b.test === 'PL').length > 0 && (
                     <div>
                       <div className="flex items-center justify-between mb-3 px-1">
                         <h4 className="text-[11px] font-extrabold text-gray-400 dark:text-[#8D9F94] uppercase tracking-widest">Perjanjian Lama</h4>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
-                        {filteredBooks.filter(b => b.test === 'PL').map((book) => (
+                        {availableBooks.filter(b => b.test === 'PL').map((book) => (
                           <button
                             key={book.id}
-                            onClick={() => { setTempSelectedBook(book); setSelectorStep('chapter'); setSearchQuery(''); }}
-                            className={`p-3 rounded-xl text-left font-bold text-[13px] transition-all duration-150 active:scale-95 border animate-book-item ${
+                            onClick={() => { setTempSelectedBook(book); setSelectorStep('chapter'); }}
+                            className={`p-3 rounded-xl text-left font-bold text-[13px] transition border ${
                               currentBook.id === book.id 
                                 ? 'bg-[#1a1d23] dark:bg-[#26372D] text-white dark:text-[#74C69D] border-[#1a1d23] dark:border-[#74C69D] shadow-md' 
                                 : 'bg-white dark:bg-[#1E2A23] text-gray-700 dark:text-[#E3ECE6] border-gray-100 dark:border-[#2E3F34] hover:border-gray-300 dark:hover:border-[#3C5143]'
@@ -1145,15 +1124,15 @@ export default function App() {
                     </div>
                   )}
 
-                  {filteredBooks.filter(b => b.test === 'PB').length > 0 && (
+                  {availableBooks.filter(b => b.test === 'PB').length > 0 && (
                     <div>
                       <h4 className="text-[11px] font-extrabold text-gray-400 dark:text-[#8D9F94] uppercase tracking-widest mb-3 pl-1">Perjanjian Baru</h4>
                       <div className="grid grid-cols-2 gap-2">
-                        {filteredBooks.filter(b => b.test === 'PB').map((book) => (
+                        {availableBooks.filter(b => b.test === 'PB').map((book) => (
                           <button 
                             key={book.id}
-                            onClick={() => { setTempSelectedBook(book); setSelectorStep('chapter'); setSearchQuery(''); }}
-                            className={`p-3 rounded-xl text-left font-bold text-[13px] transition-all duration-150 active:scale-95 border animate-book-item ${
+                            onClick={() => { setTempSelectedBook(book); setSelectorStep('chapter'); }}
+                            className={`p-3 rounded-xl text-left font-bold text-[13px] transition border ${
                               currentBook.id === book.id 
                                 ? 'bg-[#1a1d23] dark:bg-[#26372D] text-white dark:text-[#74C69D] border-[#1a1d23] dark:border-[#74C69D] shadow-md' 
                                 : 'bg-white dark:bg-[#1E2A23] text-gray-700 dark:text-[#E3ECE6] border-gray-100 dark:border-[#2E3F34] hover:border-gray-300 dark:hover:border-[#3C5143]'
@@ -1165,14 +1144,13 @@ export default function App() {
                       </div>
                     </div>
                   )}
-                  {filteredBooks.length === 0 && <p className="text-center text-sm text-gray-400 dark:text-[#8D9F94] py-4">Kitab tidak ditemukan.</p>}
                 </div>
               ) : (
                 <div className="grid grid-cols-5 gap-2">
                   {Array.from({ length: tempSelectedBook.chapters }, (_, i) => i + 1).map((ch) => (
-                    <button
-                      key={ch}
-                      onClick={() => { setCurrentBook(tempSelectedBook); setCurrentChapter(ch); setIsSelectorOpen(false); }}
+                    <button 
+                      key={ch} 
+                      onClick={() => { setCurrentBook(tempSelectedBook); setCurrentChapter(ch); closeSelector(); }} 
                       className={`aspect-square flex items-center justify-center rounded-xl font-bold text-sm transition border ${
                         currentBook.id === tempSelectedBook.id && currentChapter === ch 
                           ? 'bg-[#1a1d23] dark:bg-[#26372D] text-white dark:text-[#74C69D] border-[#1a1d23] dark:border-[#74C69D] shadow-md scale-105' 
@@ -1704,9 +1682,10 @@ export default function App() {
         )}
       </div>
 
-     <nav className={`absolute left-1/2 -translate-x-1/2 bg-white dark:bg-[#1E2A23]/95 backdrop-blur-xl border border-gray-200 dark:border-[#2E3F34] rounded-[2rem] px-6 py-3.5 flex justify-center gap-8 items-center z-40 w-max shadow-[0_10px_40px_-15px_rgba(0,0,0,0.15)] dark:shadow-[0_15px_40px_-10px_rgba(0,0,0,0.6)] transition-all duration-300 ${(selectedVerses.length > 0 || isNoteSheetOpen || isCreateLabelOpen || !isNavVisible) ? 'opacity-0 invisible translate-y-24 pointer-events-none' : 'opacity-100 visible translate-y-0'}`} style={{ bottom: 'calc(max(var(--tg-safe-bottom, 0px), env(safe-area-inset-bottom, 0px)) + 1.5rem)' }}>
+      <nav className={`absolute left-1/2 -translate-x-1/2 bg-white dark:bg-[#1E2A23]/95 backdrop-blur-xl border border-gray-200 dark:border-[#2E3F34] rounded-[2rem] px-5 py-3.5 flex justify-center gap-6 items-center z-40 w-max shadow-[0_10px_40px_-15px_rgba(0,0,0,0.15)] dark:shadow-[0_15px_40px_-10px_rgba(0,0,0,0.6)] transition-all duration-300 ${(selectedVerses.length > 0 || isNoteSheetOpen || isCreateLabelOpen || isSelectorOpen || !isNavVisible) ? 'opacity-0 invisible translate-y-24 pointer-events-none' : 'opacity-100 visible translate-y-0'}`} style={{ bottom: 'calc(max(var(--tg-safe-bottom, 0px), env(safe-area-inset-bottom, 0px)) + 1.5rem)' }}>
         <button onClick={() => switchActiveTab('home')} className={`flex flex-col items-center gap-1 transition-transform duration-150 active:scale-90 active:opacity-70 select-none ${activeTab === 'home' ? 'text-gray-900 dark:text-[#74C69D] scale-110' : 'text-gray-400 dark:text-[#8D9F94] hover:text-gray-600 dark:hover:text-[#E3ECE6]'}`}><i className={`${activeTab === 'home' ? 'ph-fill' : 'ph'} ph-house text-2xl`}></i><span className="text-[9px] font-extrabold tracking-wider uppercase">Home</span></button>
         <button onClick={() => switchActiveTab('bible')} className={`flex flex-col items-center gap-1 transition-transform duration-150 active:scale-90 active:opacity-70 select-none ${activeTab === 'bible' ? 'text-gray-900 dark:text-[#74C69D] scale-110' : 'text-gray-400 dark:text-[#8D9F94] hover:text-gray-600 dark:hover:text-[#E3ECE6]'}`}><i className={`${activeTab === 'bible' ? 'ph-fill' : 'ph'} ph-book-open-text text-2xl`}></i><span className="text-[9px] font-extrabold tracking-wider uppercase">Alkitab</span></button>
+        <button onClick={() => switchActiveTab('discover')} className={`flex flex-col items-center gap-1 transition-transform duration-150 active:scale-90 active:opacity-70 select-none ${activeTab === 'discover' ? 'text-gray-900 dark:text-[#74C69D] scale-110' : 'text-gray-400 dark:text-[#8D9F94] hover:text-gray-600 dark:hover:text-[#E3ECE6]'}`}><i className={`${activeTab === 'discover' ? 'ph-fill' : 'ph'} ph-compass text-2xl`}></i><span className="text-[9px] font-extrabold tracking-wider uppercase">Temukan</span></button>
         <button onClick={() => switchActiveTab('saved')} className={`flex flex-col items-center gap-1 transition-transform duration-150 active:scale-90 active:opacity-70 select-none ${activeTab === 'saved' ? 'text-gray-900 dark:text-[#74C69D] scale-110' : 'text-gray-400 dark:text-[#8D9F94] hover:text-gray-600 dark:hover:text-[#E3ECE6]'}`}><i className={`${activeTab === 'saved' ? 'ph-fill' : 'ph'} ph-bookmark-simple text-2xl`}></i><span className="text-[9px] font-extrabold tracking-wider uppercase">Simpan</span></button>
       </nav>
 

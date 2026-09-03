@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, memo } from 'react';
+import { useState, useEffect, useMemo, memo } from 'react';
 import type { BibleVersion } from '../types/bible';
 import { parseLabels, getLabelMeta } from '../types/bible';
 
@@ -52,33 +52,7 @@ function BibleTabComponent({
   toggleTheme
 }: BibleTabProps) {
   const [verseSearch, setVerseSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const searchInputRef = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => {
-    if (isSearchOpen) {
-      const focusTimer = setTimeout(() => {
-        searchInputRef.current?.focus();
-      }, 100);
-      return () => clearTimeout(focusTimer);
-    }
-  }, [isSearchOpen]);
-
-  useEffect(() => {
-    if (!verseSearch.trim()) {
-      setDebouncedSearch('');
-      setIsSearching(false);
-      return;
-    }
-    setIsSearching(true);
-    const handler = setTimeout(() => {
-      setDebouncedSearch(verseSearch.trim());
-      setIsSearching(false);
-    }, 180);
-    return () => clearTimeout(handler);
-  }, [verseSearch]);
 
   useEffect(() => {
     const tg = (window as any).Telegram?.WebApp;
@@ -217,12 +191,13 @@ function BibleTabComponent({
   };
 
   const filteredVerses = useMemo(() => {
-    if (!debouncedSearch) return bibleVerses;
-    const searchLower = debouncedSearch.toLowerCase();
+    const trimmed = verseSearch.trim();
+    if (!trimmed) return bibleVerses;
+    const searchLower = trimmed.toLowerCase();
     return bibleVerses.filter((v: any) =>
-      v.content.toLowerCase().includes(searchLower) || String(v.verse) === debouncedSearch
+      v.content.toLowerCase().includes(searchLower) || String(v.verse) === trimmed
     );
-  }, [bibleVerses, debouncedSearch]);
+  }, [bibleVerses, verseSearch]);
 
   useEffect(() => {
     if (highlightedVerse && !isLoadingBible && bibleVerses.length > 0) {
@@ -328,58 +303,41 @@ function BibleTabComponent({
           )}
         </div>
 
-        <div 
-          className={`overflow-hidden max-w-[420px] mx-auto transition-all duration-200 ${
-            isSearchOpen ? 'max-h-12 opacity-100 mt-2.5' : 'max-h-0 opacity-0 mt-0 pointer-events-none'
-          }`}
-        >
-          <div className="flex items-center gap-2 py-0.5">
+        {isSearchOpen && (
+          <div className="mt-2.5 max-w-[400px] mx-auto animate-fadeIn flex items-center gap-2">
             <div className="relative flex-1">
-              <i className="ph-bold ph-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#8D9F94] text-xs"></i>
+              <i className="ph-bold ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#8D9F94] text-xs"></i>
               <input
-                ref={searchInputRef}
                 type="text"
                 placeholder="Cari ayat di pasal ini..."
                 value={verseSearch}
                 onChange={(e) => setVerseSearch(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Escape') {
-                    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
                     setIsSearchOpen(false);
                     setVerseSearch('');
-                    setDebouncedSearch('');
-                    setIsSearching(false);
                   }
                 }}
-                className="w-full bg-[#f4f5f7] dark:bg-[#1E2A23] border border-gray-200/60 dark:border-[#2E3F34] text-gray-800 dark:text-[#E3ECE6] placeholder-gray-400 dark:placeholder-[#6C8074] rounded-xl py-2 pl-9 pr-8 text-[12px] font-medium focus:outline-none focus:bg-[#eaedf2] dark:focus:bg-[#26372D]"
+                autoFocus
+                className="w-full bg-[#f4f5f7] dark:bg-[#1E2A23] rounded-xl py-2 pl-8 pr-7 text-[12px] font-medium text-gray-800 dark:text-[#E3ECE6] placeholder-gray-400 dark:placeholder-[#6C8074] focus:outline-none focus:bg-[#eaedf2] dark:focus:bg-[#26372D] border border-gray-200/60 dark:border-[#2E3F34] transition"
               />
               {verseSearch && (
-                <button 
-                  onClick={() => {
-                    setVerseSearch('');
-                    setDebouncedSearch('');
-                    setIsSearching(false);
-                  }} 
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-[#8D9F94] dark:hover:text-[#E3ECE6]"
-                >
+                <button onClick={() => setVerseSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-[#8D9F94] dark:hover:text-[#E3ECE6]">
                   <i className="ph-bold ph-x text-xs"></i>
                 </button>
               )}
             </div>
             <button
               onClick={() => {
-                if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
                 setIsSearchOpen(false);
                 setVerseSearch('');
-                setDebouncedSearch('');
-                setIsSearching(false);
               }}
-              className="text-[12px] font-bold text-gray-500 dark:text-[#8D9F94] hover:text-gray-900 dark:hover:text-[#E3ECE6] px-2 py-1.5 rounded-lg active:scale-95 shrink-0"
+              className="text-[12px] font-bold text-gray-500 dark:text-[#8D9F94] hover:text-gray-900 dark:hover:text-[#E3ECE6] px-2 py-1.5 rounded-lg transition active:scale-95 shrink-0"
             >
               Batal
             </button>
           </div>
-        </div>
+        )}
       </div>
 
       <div className="flex-1 px-5 pt-3 pb-10 animate-fadeIn">
@@ -417,18 +375,6 @@ function BibleTabComponent({
                   Ganti Terjemahan
                 </button>
               </div>
-            </div>
-          ) : isSearching ? (
-            <div className="animate-pulse space-y-4 py-2 mt-3">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="flex gap-3 px-3">
-                  <div className="w-5 h-4 bg-gray-200 dark:bg-[#2E3F34] rounded-md shrink-0 mt-1"></div>
-                  <div className="flex-1 space-y-2">
-                    <div className="h-4 bg-gray-200 dark:bg-[#2E3F34] rounded-md w-full"></div>
-                    <div className="h-4 bg-gray-200 dark:bg-[#2E3F34] rounded-md w-4/6"></div>
-                  </div>
-                </div>
-              ))}
             </div>
           ) : filteredVerses.length > 0 ? (
             filteredVerses.map((verseData: any, idx: number) => {

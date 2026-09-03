@@ -16,7 +16,6 @@ html, body {
   width: 100%;
   height: 100vh;
   height: 100dvh;
-  height: var(--tg-viewport-height, 100dvh);
   overflow: hidden;
   background-color: #fafafa;
   color: #111827;
@@ -55,15 +54,15 @@ html.dark #root {
 
 input, textarea {
   -webkit-touch-callout: default;
-  -webkit-user-select: text;
-  user-select: text;
-  background-color: transparent;
+  -webkit-user-select: auto;
+  user-select: auto;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+  color: inherit;
 }
 
-html.dark input,
-html.dark textarea {
-  color: #E3ECE6;
-  background-color: transparent;
+html.dark input, html.dark textarea {
+  color: inherit;
 }
 
 #app-container {
@@ -165,10 +164,12 @@ html.dark textarea {
 
 .sheet-enter {
   animation: sheetSlideUp 0.26s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform;
 }
 
 .sheet-exit {
   animation: sheetSlideDown 0.2s cubic-bezier(0.4, 0, 1, 1) forwards;
+  will-change: transform;
 }
 
 .animate-book-item {
@@ -282,4 +283,18 @@ html.dark textarea {
 .action-view-back {
   animation: actionSlideOut 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   will-change: transform, opacity;
+}
+
+.accordion-grid {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.26s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.accordion-grid.open {
+  grid-template-rows: 1fr;
+}
+
+.accordion-inner {
+  overflow: hidden;
 }

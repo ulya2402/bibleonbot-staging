@@ -129,10 +129,10 @@ function BibleTabComponent({
           return (
             <span
               key={index}
-              className={`inline-flex items-center text-[9px] font-mono select-none mx-0.5 px-1 py-0.2 rounded border align-baseline ${
+              className={`inline-flex items-center text-[9px] font-mono select-none mx-0.5 px-1 py-0.2 rounded border align-baseline transition-colors ${
                 isStrong
-                  ? 'text-emerald-700 bg-emerald-50/90 border-emerald-200'
-                  : 'text-purple-700 bg-purple-50/90 border-purple-200'
+                  ? 'text-emerald-700 bg-emerald-50/90 border-emerald-200 dark:text-[#74C69D] dark:bg-[#1E2E25] dark:border-[#2D4537]'
+                  : 'text-purple-700 bg-purple-50/90 border-purple-200 dark:text-purple-300 dark:bg-purple-950/40 dark:border-purple-800/50'
               }`}
             >
               {content}
@@ -143,7 +143,7 @@ function BibleTabComponent({
         if (part.startsWith('[') && part.endsWith(']')) {
           const content = part.slice(1, -1);
           return (
-            <span key={index} className="italic text-gray-600 font-normal">
+            <span key={index} className="italic text-gray-600 dark:text-[#9FB1A6] font-normal">
               {content}
             </span>
           );
@@ -151,7 +151,7 @@ function BibleTabComponent({
 
         if (part.startsWith('(') && part.endsWith(')')) {
           return (
-            <span key={index} className="text-gray-500 text-[12px] font-normal">
+            <span key={index} className="text-gray-500 dark:text-[#8D9F94] text-[12px] font-normal">
               {part}
             </span>
           );
@@ -161,7 +161,7 @@ function BibleTabComponent({
           return (
             <span
               key={index}
-              className="inline-flex items-center text-[9px] font-mono text-emerald-700 bg-emerald-50/90 border border-emerald-200 select-none mx-0.5 px-1 py-0.2 rounded align-baseline"
+              className="inline-flex items-center text-[9px] font-mono text-emerald-700 bg-emerald-50/90 border border-emerald-200 dark:text-[#74C69D] dark:bg-[#1E2E25] dark:border-[#2D4537] select-none mx-0.5 px-1 py-0.2 rounded align-baseline transition-colors"
             >
               {part}
             </span>
@@ -172,7 +172,7 @@ function BibleTabComponent({
           return (
             <span
               key={index}
-              className="inline-flex items-center text-[9px] font-mono text-purple-700 bg-purple-50/90 border border-purple-200 select-none mx-0.5 px-1 py-0.2 rounded align-baseline"
+              className="inline-flex items-center text-[9px] font-mono text-purple-700 bg-purple-50/90 border border-purple-200 dark:text-purple-300 dark:bg-purple-950/40 dark:border-purple-800/50 select-none mx-0.5 px-1 py-0.2 rounded align-baseline transition-colors"
             >
               {part}
             </span>
@@ -183,7 +183,7 @@ function BibleTabComponent({
       });
 
       return (
-        <span key={lineIdx} className={lineIdx > 0 ? 'block mt-2 pl-2.5 border-l-2 border-gray-200' : ''}>
+        <span key={lineIdx} className={lineIdx > 0 ? 'block mt-2 pl-2.5 border-l-2 border-gray-200 dark:border-[#2E3F34]' : ''}>
           {parsedLine}
         </span>
       );

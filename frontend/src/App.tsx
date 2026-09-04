@@ -129,11 +129,18 @@ export default function App() {
 
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const [selectorStep, setSelectorStep] = useState<'book' | 'chapter' | 'version'>('book');
-  const [tempSelectedBook, setTempSelectedBook] = useState(BIBLE_BOOKS[0]);
+  const [selectorTestament, setSelectorTestament] = useState<'PL' | 'PB'>('PL');
+  const [expandedBookId, setExpandedBookId] = useState<string | null>(null);
 
   const closeSelector = () => {
     setIsSelectorOpen(false);
-    setSelectorStep('book');
+  };
+
+  const triggerHaptic = () => {
+    try {
+      const tg = (window as any).Telegram?.WebApp;
+      tg?.HapticFeedback?.impactOccurred?.('light');
+    } catch (e) {}
   };
   const [highlightedVerse, setHighlightedVerse] = useState<number | null>(null);
 
@@ -355,7 +362,6 @@ export default function App() {
         tg.ready();
         tg.expand();
         try { tg.enableClosingConfirmation?.(); } catch (e) {}
-        try { if (!tg.isVersionAtLeast || tg.isVersionAtLeast('8.0')) { tg.requestFullscreen?.(); tg.disableVerticalSwipes?.(); } } catch (e) {}
         const initialBg = isDark ? '#17211C' : '#fafafa';
         try { tg.setHeaderColor?.(initialBg); tg.setBackgroundColor?.(initialBg); } catch (e) {}
 
@@ -409,12 +415,18 @@ export default function App() {
         e.preventDefault();
       }
     };
+    const handleVisibilityChange = () => {
+      if (document.hidden && document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
+    };
     window.addEventListener('contextmenu', handleContextMenu);
-
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     fetchHomeData();
     return () => {
       if (cleanupInsets) cleanupInsets();
       window.removeEventListener('contextmenu', handleContextMenu);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 
@@ -433,8 +445,16 @@ export default function App() {
   }, [currentBook, currentChapter]);
 
   useEffect(() => {
-    fetchSavedData();
-  }, [userId, activeTab]);
+    if (activeTab === 'saved') {
+      fetchSavedData();
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (userId) {
+      fetchSavedData();
+    }
+  }, [userId]);
 
   const closeNoteSheet = () => {
     if (document.activeElement instanceof HTMLElement) {
@@ -488,12 +508,28 @@ export default function App() {
     }
   }, [currentVersion]);
 
+  const bibleCache = useRef<Record<string, any[]>>({});
+
   useEffect(() => {
+    const cacheKey = `${currentBook.id}-${currentChapter}-${currentVersion.id}`;
+    if (bibleCache.current[cacheKey]) {
+      setBibleVerses(bibleCache.current[cacheKey]);
+      setIsLoadingBible(false);
+      if (mainRef.current) mainRef.current.scrollTop = 0;
+      setIsNavVisible(true);
+      return;
+    }
+
     const fetchBibleVerses = async () => {
-      setIsLoadingBible(true); setBibleVerses([]); 
+      setIsLoadingBible(true);
+      setBibleVerses([]);
       try {
         const resBible = await fetch(`${API_URL}/bible?book=${currentBook.id}&chapter=${currentChapter}&version=${currentVersion.id}`);
-        if (resBible.ok) setBibleVerses(await resBible.json());
+        if (resBible.ok) {
+          const data = await resBible.json();
+          bibleCache.current[cacheKey] = data;
+          setBibleVerses(data);
+        }
       } catch (error) {
         console.error('Fetch Bible Verses Error:', error);
       } finally { 
@@ -993,8 +1029,21 @@ export default function App() {
             currentBook={currentBook}
             currentChapter={currentChapter}
             currentVersion={currentVersion}
-            setSelectorStep={setSelectorStep}
-            setIsSelectorOpen={setIsSelectorOpen}
+            setSelectorStep={(step) => {
+              setSelectorStep(step === 'version' ? 'version' : 'book');
+              setSelectorTestament(currentVersion.testamentScope === 'NT' ? 'PB' : (currentBook.test as 'PL' | 'PB'));
+              setExpandedBookId(currentBook.id);
+              setIsSelectorOpen(true);
+              triggerHaptic();
+            }}
+            setIsSelectorOpen={(open) => {
+              if (open) {
+                setSelectorTestament(currentVersion.testamentScope === 'NT' ? 'PB' : (currentBook.test as 'PL' | 'PB'));
+                setExpandedBookId(currentBook.id);
+                triggerHaptic();
+              }
+              setIsSelectorOpen(open);
+            }}
             isLoadingBible={isLoadingBible}
             bibleVerses={bibleVerses}
             savedVerses={savedVerses}
@@ -1034,135 +1083,219 @@ export default function App() {
       </main>
 
       {isSelectorOpen && (
-        <div className="absolute inset-0 z-[100] flex flex-col justify-end">
-          <div className="absolute inset-0 bg-gray-900/60 dark:bg-black/70 transition-opacity" onClick={closeSelector}></div>
-          
-          <div className="relative bg-white dark:bg-[#1E2A23] w-full max-w-[500px] mx-auto rounded-t-[1.5rem] h-[85vh] flex flex-col shadow-2xl animate-[fadeIn_0.25s_ease-out]">
-            <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-[#2E3F34] shrink-0 bg-white dark:bg-[#1E2A23] rounded-t-[1.5rem]">
-              {selectorStep === 'chapter' ? (
-                <button onClick={() => setSelectorStep('book')} className="p-2 -ml-2 text-gray-500 dark:text-[#8D9F94] hover:bg-gray-100 dark:hover:bg-[#27382F] rounded-full transition">
-                  <i className="ph-bold ph-arrow-left text-xl"></i>
-                </button>
-              ) : (
-                <div className="w-8"></div>
-              )}
-              <h3 className="font-extrabold text-lg text-gray-900 dark:text-[#E3ECE6]">
-                {selectorStep === 'book' ? 'Pilih Kitab' : selectorStep === 'version' ? 'Pilih Terjemahan' : `Pasal ${tempSelectedBook.name}`}
-              </h3>
-              <button onClick={closeSelector} className="p-2 -mr-2 text-gray-500 dark:text-[#8D9F94] hover:bg-gray-100 dark:hover:bg-[#27382F] rounded-full transition">
-                <i className="ph-bold ph-x text-xl"></i>
+        <div 
+          className="fixed inset-x-0 top-0 z-[120] flex flex-col bg-[#fafafa] dark:bg-[#17211C]"
+          style={{ height: 'var(--tg-viewport-height, 100dvh)' }}
+        >
+          <div 
+            className="px-4 pb-3 bg-[#fafafa] dark:bg-[#17211C] flex items-center justify-between shrink-0"
+            style={{
+              paddingTop: 'calc(max(var(--tg-safe-top, 0px), env(safe-area-inset-top, 0px)) + 3.25rem)'
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic();
+                closeSelector();
+              }}
+              className="flex items-center gap-1 text-gray-500 dark:text-[#8D9F94] hover:text-gray-900 dark:hover:text-[#E3ECE6] active:scale-90 transition-transform py-1.5 px-2 -ml-1 text-[14px] font-semibold select-none"
+            >
+              <i className="ph-bold ph-caret-left text-lg"></i>
+              <span>Batal</span>
+            </button>
+
+            <div className="flex items-center p-1 bg-gray-200/70 dark:bg-[#223128] rounded-full">
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic();
+                  setSelectorStep('book');
+                }}
+                className={`px-4 py-1 rounded-full text-[12px] font-extrabold transition-all duration-150 active:scale-95 ${
+                  selectorStep !== 'version'
+                    ? 'bg-white dark:bg-[#17211C] text-gray-950 dark:text-[#74C69D] shadow-xs'
+                    : 'text-gray-500 dark:text-[#8D9F94]'
+                }`}
+              >
+                Kitab
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic();
+                  setSelectorStep('version');
+                }}
+                className={`px-4 py-1 rounded-full text-[12px] font-extrabold transition-all duration-150 active:scale-95 ${
+                  selectorStep === 'version'
+                    ? 'bg-white dark:bg-[#17211C] text-gray-950 dark:text-[#74C69D] shadow-xs'
+                    : 'text-gray-500 dark:text-[#8D9F94]'
+                }`}
+              >
+                Terjemahan
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-5 scroll-area no-scrollbar bg-[#fafafa] dark:bg-[#17211C]">
-              {selectorStep === 'version' ? (
-                <div className="space-y-6">
-                  {BIBLE_LANGUAGES.map((group) => (
-                    <div key={group.code} className="space-y-2.5">
-                      <div className="flex items-center gap-2 px-1">
-                        <span className="text-[11px] font-extrabold text-gray-400 dark:text-[#8D9F94] uppercase tracking-widest">{group.name}</span>
-                        <div className="flex-1 h-[1px] bg-gray-200 dark:bg-[#2E3F34]"></div>
-                      </div>
-                      <div className="space-y-2">
-                        {group.versions.map((ver) => {
-                          const isSelected = currentVersion.id === ver.id;
-                          return (
-                            <button
-                              key={ver.id}
-                              onClick={() => handleSelectVersion(ver)}
-                              className={`w-full p-4 rounded-2xl text-left transition border flex justify-between items-center ${
-                                isSelected 
-                                  ? 'bg-gray-900 dark:bg-[#26372D] text-white dark:text-[#74C69D] border-gray-900 dark:border-[#74C69D] shadow-md' 
-                                  : 'bg-white dark:bg-[#1E2A23] text-gray-800 dark:text-[#E3ECE6] border-gray-100 dark:border-[#2E3F34] hover:border-gray-300 dark:hover:border-[#3C5143] shadow-sm'
-                              }`}
-                            >
-                              <div className="pr-3">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <span className="font-bold text-[14px]">{ver.name}</span>
-                                  {ver.testamentScope === 'NT' && (
-                                    <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md ${
-                                      isSelected 
-                                        ? 'bg-gray-800 dark:bg-[#17211C] text-yellow-300 dark:text-[#74C69D] border border-gray-700 dark:border-[#2E3F34]' 
-                                        : 'bg-amber-50 dark:bg-[#26372D] text-amber-700 dark:text-[#74C69D] border border-amber-200 dark:border-[#2E3F34]'
-                                    }`}>PB</span>
-                                  )}
-                                </div>
-                                {ver.description && (
-                                  <p className={`text-[11px] leading-tight ${isSelected ? 'text-gray-300 dark:text-[#8D9F94]' : 'text-gray-500 dark:text-[#8D9F94]'}`}>{ver.description}</p>
+            <div className="w-14"></div>
+          </div>
+
+          <div className="flex-1 min-h-0 overflow-y-auto px-4 py-2 space-y-3 no-scrollbar">
+            {selectorStep === 'version' ? (
+              <div className="space-y-4">
+                {BIBLE_LANGUAGES.map((group) => (
+                  <div key={group.code} className="space-y-1.5">
+                    <span className="text-[10.5px] font-extrabold text-gray-400 dark:text-[#8D9F94] uppercase tracking-wider px-1 block">
+                      {group.name}
+                    </span>
+                    <div className="space-y-1.5">
+                      {group.versions.map((ver) => {
+                        const isSelected = currentVersion.id === ver.id;
+                        return (
+                          <button
+                            key={ver.id}
+                            onClick={() => {
+                              triggerHaptic();
+                              handleSelectVersion(ver);
+                            }}
+                            className={`w-full px-4 py-3.5 rounded-2xl text-left transition-all duration-150 active:scale-[0.98] flex justify-between items-center ${
+                              isSelected
+                                ? 'bg-gray-900 dark:bg-[#202E26] text-white dark:text-[#74C69D] shadow-xs'
+                                : 'bg-white/80 dark:bg-[#1C2821] hover:bg-white dark:hover:bg-[#202E26] text-gray-800 dark:text-[#E3ECE6]'
+                            }`}
+                          >
+                            <div className="pr-3">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-[14.5px]">{ver.name}</span>
+                                {ver.testamentScope === 'NT' && (
+                                  <span className={`text-[9.5px] font-extrabold px-1.5 py-0.5 rounded-md ${
+                                    isSelected
+                                      ? 'bg-white/20 text-white dark:bg-[#17211C] dark:text-[#74C69D]'
+                                      : 'bg-gray-100 text-gray-900 dark:bg-[#28382F] dark:text-[#74C69D]'
+                                  }`}>PB</span>
                                 )}
                               </div>
-                              {isSelected && <i className="ph-bold ph-check-circle text-xl text-green-400 dark:text-[#74C69D] shrink-0"></i>}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : selectorStep === 'book' ? (
-                <div className="space-y-6">
-                  {currentVersion.testamentScope !== 'NT' && availableBooks.filter(b => b.test === 'PL').length > 0 && (
-                    <div>
-                      <div className="flex items-center justify-between mb-3 px-1">
-                        <h4 className="text-[11px] font-extrabold text-gray-400 dark:text-[#8D9F94] uppercase tracking-widest">Perjanjian Lama</h4>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        {availableBooks.filter(b => b.test === 'PL').map((book) => (
-                          <button
-                            key={book.id}
-                            onClick={() => { setTempSelectedBook(book); setSelectorStep('chapter'); }}
-                            className={`p-3 rounded-xl text-left font-bold text-[13px] transition border ${
-                              currentBook.id === book.id 
-                                ? 'bg-[#1a1d23] dark:bg-[#26372D] text-white dark:text-[#74C69D] border-[#1a1d23] dark:border-[#74C69D] shadow-md' 
-                                : 'bg-white dark:bg-[#1E2A23] text-gray-700 dark:text-[#E3ECE6] border-gray-100 dark:border-[#2E3F34] hover:border-gray-300 dark:hover:border-[#3C5143]'
-                            }`}
-                          >
-                            {book.name}
+                              {ver.description && (
+                                <p className={`text-[11.5px] leading-tight mt-0.5 ${isSelected ? 'text-gray-300 dark:text-[#8D9F94]' : 'text-gray-400 dark:text-[#8D9F94]'}`}>{ver.description}</p>
+                              )}
+                            </div>
+                            {isSelected && <i className="ph-bold ph-check text-lg text-emerald-400 dark:text-[#74C69D] shrink-0"></i>}
                           </button>
-                        ))}
-                      </div>
+                        );
+                      })}
                     </div>
-                  )}
-
-                  {availableBooks.filter(b => b.test === 'PB').length > 0 && (
-                    <div>
-                      <h4 className="text-[11px] font-extrabold text-gray-400 dark:text-[#8D9F94] uppercase tracking-widest mb-3 pl-1">Perjanjian Baru</h4>
-                      <div className="grid grid-cols-2 gap-2">
-                        {availableBooks.filter(b => b.test === 'PB').map((book) => (
-                          <button 
-                            key={book.id}
-                            onClick={() => { setTempSelectedBook(book); setSelectorStep('chapter'); }}
-                            className={`p-3 rounded-xl text-left font-bold text-[13px] transition border ${
-                              currentBook.id === book.id 
-                                ? 'bg-[#1a1d23] dark:bg-[#26372D] text-white dark:text-[#74C69D] border-[#1a1d23] dark:border-[#74C69D] shadow-md' 
-                                : 'bg-white dark:bg-[#1E2A23] text-gray-700 dark:text-[#E3ECE6] border-gray-100 dark:border-[#2E3F34] hover:border-gray-300 dark:hover:border-[#3C5143]'
-                            }`}
-                          >
-                            {book.name}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="grid grid-cols-5 gap-2">
-                  {Array.from({ length: tempSelectedBook.chapters }, (_, i) => i + 1).map((ch) => (
-                    <button 
-                      key={ch} 
-                      onClick={() => { setCurrentBook(tempSelectedBook); setCurrentChapter(ch); closeSelector(); }} 
-                      className={`aspect-square flex items-center justify-center rounded-xl font-bold text-sm transition border ${
-                        currentBook.id === tempSelectedBook.id && currentChapter === ch 
-                          ? 'bg-[#1a1d23] dark:bg-[#26372D] text-white dark:text-[#74C69D] border-[#1a1d23] dark:border-[#74C69D] shadow-md scale-105' 
-                          : 'bg-white dark:bg-[#1E2A23] text-gray-700 dark:text-[#E3ECE6] border-gray-100 dark:border-[#2E3F34] hover:border-gray-300 dark:hover:border-[#3C5143]'
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {currentVersion.testamentScope !== 'NT' && (
+                  <div className="flex items-center gap-1.5 p-1 bg-gray-200/70 dark:bg-[#223128] rounded-2xl">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        triggerHaptic();
+                        setSelectorTestament('PL');
+                      }}
+                      className={`flex-1 py-2 rounded-xl text-[12px] font-bold transition-all duration-150 active:scale-95 ${
+                        selectorTestament === 'PL'
+                          ? 'bg-white dark:bg-[#17211C] text-gray-950 dark:text-[#74C69D] shadow-xs'
+                          : 'text-gray-500 dark:text-[#8D9F94]'
                       }`}
                     >
-                      {ch}
+                      Perjanjian Lama
                     </button>
-                  ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        triggerHaptic();
+                        setSelectorTestament('PB');
+                      }}
+                      className={`flex-1 py-2 rounded-xl text-[12px] font-bold transition-all duration-150 active:scale-95 ${
+                        selectorTestament === 'PB'
+                          ? 'bg-white dark:bg-[#17211C] text-gray-950 dark:text-[#74C69D] shadow-xs'
+                          : 'text-gray-500 dark:text-[#8D9F94]'
+                      }`}
+                    >
+                      Perjanjian Baru
+                    </button>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  {availableBooks
+                    .filter(b => currentVersion.testamentScope === 'NT' ? b.test === 'PB' : b.test === selectorTestament)
+                    .map((book) => {
+                      const isExpanded = expandedBookId === book.id;
+                      const isCurrentBook = currentBook.id === book.id;
+
+                      return (
+                        <div
+                          key={book.id}
+                          className={`rounded-2xl transition-all duration-150 overflow-hidden ${
+                            isExpanded
+                              ? 'bg-white dark:bg-[#202E26] shadow-xs'
+                              : 'bg-white/80 dark:bg-[#1C2821] hover:bg-white dark:hover:bg-[#202E26]'
+                          }`}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => {
+                              triggerHaptic();
+                              setExpandedBookId(prev => prev === book.id ? null : book.id);
+                            }}
+                            className="w-full px-4 py-3.5 flex items-center justify-between text-left select-none transition-transform duration-150 active:scale-[0.985]"
+                          >
+                            <div>
+                              <h4 className={`text-[15px] font-bold leading-tight ${
+                                isCurrentBook ? 'text-gray-950 dark:text-[#74C69D]' : 'text-gray-900 dark:text-[#E3ECE6]'
+                              }`}>
+                                {book.name}
+                              </h4>
+                              <p className="text-[11.5px] font-medium text-gray-400 dark:text-[#8D9F94] mt-0.5">
+                                {book.chapters} Pasal
+                              </p>
+                            </div>
+                            <div className="w-7 h-7 rounded-full flex items-center justify-center text-gray-400 dark:text-[#8D9F94] bg-gray-100/80 dark:bg-[#28382F]">
+                              <i className={`ph-bold ph-caret-down text-xs transition-transform duration-200 ${isExpanded ? 'rotate-180 text-gray-900 dark:text-[#74C69D]' : ''}`}></i>
+                            </div>
+                          </button>
+
+                          <div className={`accordion-grid ${isExpanded ? 'open' : ''}`}>
+                            <div className="accordion-inner">
+                              <div className="px-3 pb-3.5 pt-1">
+                                <div className="grid grid-cols-6 sm:grid-cols-8 gap-2 p-2 bg-gray-50/80 dark:bg-[#17211C]/60 rounded-xl">
+                                  {Array.from({ length: book.chapters }, (_, i) => i + 1).map((ch) => {
+                                    const isSelectedChapter = isCurrentBook && currentChapter === ch;
+                                    return (
+                                      <button
+                                        key={ch}
+                                        type="button"
+                                        onClick={() => {
+                                          triggerHaptic();
+                                          setCurrentBook(book);
+                                          setCurrentChapter(ch);
+                                          closeSelector();
+                                        }}
+                                        className={`h-10 rounded-xl flex items-center justify-center text-[13.5px] font-bold transition-all duration-150 active:scale-85 active:opacity-75 ${
+                                          isSelectedChapter
+                                            ? 'bg-gray-900 dark:bg-[#74C69D] text-white dark:text-[#17211C] shadow-xs'
+                                            : 'bg-white dark:bg-[#25362C] text-gray-800 dark:text-[#E3ECE6] hover:bg-gray-100 dark:hover:bg-[#2C3F34]'
+                                        }`}
+                                      >
+                                        {ch}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       )}

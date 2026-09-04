@@ -206,11 +206,8 @@ export default function HomeTab({ dailyVerse, communities, channels, news, userN
       </div>
 
       <div className="pb-4 space-y-4">
-        <div className="flex items-center justify-between px-1">
-          <h3 className="font-bold text-lg tracking-tight">Berita & Artikel</h3>
-          <button className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50">
-            <i className="ph-bold ph-newspaper text-sm"></i>
-          </button>
+        <div className="px-1">
+          <h3 className="font-bold text-lg tracking-tight text-gray-900 dark:text-[#E3ECE6]">Berita & Artikel</h3>
         </div>
         
         <div className="space-y-4">

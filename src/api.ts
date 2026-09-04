@@ -209,30 +209,37 @@ export class ApiHandler {
                     return new Response(JSON.stringify(saved.results || []), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
                 }
                 if (request.method === 'POST') {
-                    const body: any = await request.json();
-                    const version = body.version || 'AYT';
-                    const labels = typeof body.labels === 'string' ? body.labels : (Array.isArray(body.labels) ? body.labels.join(', ') : (body.labels || ''));
-                    const isCompletelyEmpty = (!body.color || body.color.trim() === '') && (!body.note || body.note.trim() === '') && (!labels || labels.trim() === '');
+    const body: any = await request.json();
+    const items: any[] = Array.isArray(body) ? body : [body];
+    const statements: any[] = [];
 
-                    const existing = await this.env.DB.prepare("SELECT id FROM saved_verses WHERE user_id = ? AND book = ? AND chapter = ? AND verse = ?")
-                        .bind(body.user_id, body.book, body.chapter, body.verse).first();
+    for (const item of items) {
+        const version = item.version || 'AYT';
+        const labels = typeof item.labels === 'string' ? item.labels : (Array.isArray(item.labels) ? item.labels.join(', ') : (item.labels || ''));
+        const isCompletelyEmpty = (!item.color || item.color.trim() === '') && (!item.note || item.note.trim() === '') && (!labels || labels.trim() === '');
+        
+        const existing = await this.env.DB.prepare("SELECT id FROM saved_verses WHERE user_id = ? AND book = ? AND chapter = ? AND verse = ?")
+            .bind(item.user_id, item.book, item.chapter, item.verse).first();
 
-                    if (isCompletelyEmpty) {
-                        if (existing) {
-                            await this.env.DB.prepare("DELETE FROM saved_verses WHERE id = ?").bind(existing.id).run();
-                        }
-                        return new Response(JSON.stringify({ success: true, deleted: true }), { headers: corsHeaders });
-                    }
+        if (isCompletelyEmpty) {
+            if (existing) {
+                statements.push(this.env.DB.prepare("DELETE FROM saved_verses WHERE id = ?").bind(existing.id));
+            }
+        } else if (existing) {
+            statements.push(this.env.DB.prepare("UPDATE saved_verses SET color = ?, content = ?, note = ?, version = ?, labels = ?, created_at = CURRENT_TIMESTAMP WHERE id = ?")
+                .bind(item.color, item.content, item.note, version, labels, existing.id));
+        } else {
+            statements.push(this.env.DB.prepare("INSERT INTO saved_verses (user_id, book, chapter, verse, content, color, note, version, labels, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)")
+                .bind(item.user_id, item.book, item.chapter, item.verse, item.content, item.color, item.note, version, labels));
+        }
+    }
 
-                    if (existing) {
-                        await this.env.DB.prepare("UPDATE saved_verses SET color = ?, content = ?, note = ?, version = ?, labels = ?, created_at = CURRENT_TIMESTAMP WHERE id = ?")
-                            .bind(body.color, body.content, body.note, version, labels, existing.id).run();
-                    } else {
-                        await this.env.DB.prepare("INSERT INTO saved_verses (user_id, book, chapter, verse, content, color, note, version, labels, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)")
-                            .bind(body.user_id, body.book, body.chapter, body.verse, body.content, body.color, body.note, version, labels).run();
-                    }
-                    return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
-                }
+    if (statements.length > 0) {
+        await this.env.DB.batch(statements);
+    }
+
+    return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+}
                 if (request.method === 'DELETE') {
                     const id = url.searchParams.get('id');
                     await this.env.DB.prepare("DELETE FROM saved_verses WHERE id = ?").bind(id).run();

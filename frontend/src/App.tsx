@@ -166,6 +166,9 @@ export default function App() {
     }
   });
 
+  const pendingSyncRef = useRef<Map<string, any>>(new Map());
+  const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     if (isCreateLabelOpen) {
       setIsLabelPageLoading(true);
@@ -282,6 +285,9 @@ export default function App() {
     return () => {
       if (scrollRafId.current !== null) {
         cancelAnimationFrame(scrollRafId.current);
+      }
+      if (syncTimerRef.current !== null) {
+        clearTimeout(syncTimerRef.current);
       }
     };
   }, []);
@@ -699,88 +705,100 @@ export default function App() {
     }
 
     const newSavedVerses = [...savedVerses];
-    const fetchPromises: Promise<any>[] = [];
 
-    try {
-      for (const v of targetVerses) {
-        const existingIndex = newSavedVerses.findIndex(
-          sv => String(sv.book) === String(targetBookName) &&
-                String(sv.chapter) === String(targetChapterNum) &&
-                String(sv.verse) === String(v.verse)
-        );
-        const existing = existingIndex >= 0 ? newSavedVerses[existingIndex] : null;
-        const finalColor = colorParam !== null ? colorParam : (existing?.color || '');
-        const finalNote = noteParam !== null ? noteParam : (existing?.note || '');
-        const finalLabels = labelsParam !== null 
-          ? (Array.isArray(labelsParam) ? labelsParam.join(', ') : labelsParam)
-          : (existing?.labels || '');
+    for (const v of targetVerses) {
+      const existingIndex = newSavedVerses.findIndex(
+        sv => String(sv.book).toLowerCase() === String(targetBookName).toLowerCase() &&
+              Number(sv.chapter) === Number(targetChapterNum) &&
+              Number(sv.verse) === Number(v.verse)
+      );
+      const existing = existingIndex >= 0 ? newSavedVerses[existingIndex] : null;
+      const finalColor = colorParam !== null ? colorParam : (existing?.color || '');
+      const finalNote = noteParam !== null ? noteParam : (existing?.note || '');
+      const finalLabels = labelsParam !== null 
+        ? (Array.isArray(labelsParam) ? labelsParam.join(', ') : labelsParam)
+        : (existing?.labels || '');
 
-        if (existing && existing.color === finalColor && existing.note === finalNote && existing.labels === finalLabels) {
-          continue;
+      if (existing && existing.color === finalColor && existing.note === finalNote && existing.labels === finalLabels) {
+        continue;
+      }
+
+      const isCompletelyEmpty = (!finalColor || finalColor.trim() === '') && (!finalNote || finalNote.trim() === '') && (!finalLabels || finalLabels.trim() === '');
+      
+      if (isCompletelyEmpty) {
+        if (existingIndex >= 0) {
+          newSavedVerses.splice(existingIndex, 1);
         }
-
-        const isCompletelyEmpty = (!finalColor || finalColor.trim() === '') && (!finalNote || finalNote.trim() === '') && (!finalLabels || finalLabels.trim() === '');
-
-        if (isCompletelyEmpty) {
-          if (existingIndex >= 0) {
-            newSavedVerses.splice(existingIndex, 1);
-          }
-          if (existing?.id) {
-            fetchPromises.push(
-              fetch(`${API_URL}/saved-verses?id=${existing.id}&t=${Date.now()}`, {
-                method: 'DELETE'
-              })
-            );
-          }
-          continue;
-        }
-
-        const payload = {
+      } else {
+        const itemObj = {
           id: existing?.id,
           user_id: String(userId),
           book: String(targetBookName),
           chapter: Number(targetChapterNum),
           verse: Number(v.verse),
-          content: String(v.content).replace(/^¶\s*/, '').replace(/<t\s*\/>/g, ''),
+          content: String(v.content).replace(/^[\u00B6\s]+/, '').replace(/<t\s*\/>/g, ''),
           color: String(finalColor),
           note: String(finalNote),
           version: String(currentVersion.shortName || 'AYT'),
           labels: String(finalLabels),
           created_at: new Date().toISOString()
         };
-
-        if (existingIndex >= 0) newSavedVerses[existingIndex] = { ...newSavedVerses[existingIndex], ...payload };
-        else newSavedVerses.unshift({ ...payload, id: Date.now() + Math.random() });
-
-        fetchPromises.push(
-          fetch(`${API_URL}/saved-verses?t=${Date.now()}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          })
-        );
+        if (existingIndex >= 0) {
+          newSavedVerses[existingIndex] = { ...newSavedVerses[existingIndex], ...itemObj };
+        } else {
+          newSavedVerses.unshift({ ...itemObj, id: Date.now() + Math.random() });
+        }
       }
 
-      setSavedVerses(newSavedVerses);
-      
-      if (labelsParam !== null) {
-        triggerAction('Label diperbarui!');
-      } else if (noteParam !== null) {
-        closeNoteSheet();
-        setTimeout(() => triggerAction('Catatan tersimpan!'), 160);
-        setNoteInput('');
-        setSelectedVerses([]);
-      } else {
-        triggerAction(colorParam === '' ? 'Warna dihapus!' : 'Warna diterapkan!');
-      }
+      const payload = {
+        id: existing?.id,
+        user_id: String(userId),
+        book: String(targetBookName),
+        chapter: Number(targetChapterNum),
+        verse: Number(v.verse),
+        content: String(v.content).replace(/^[\u00B6\s]+/, '').replace(/<t\s*\/>/g, ''),
+        color: String(finalColor),
+        note: String(finalNote),
+        version: String(currentVersion.shortName || 'AYT'),
+        labels: String(finalLabels)
+      };
 
-      setIsColorPaletteOpen(false);
-      if (fetchPromises.length > 0) {
-        await Promise.all(fetchPromises);
-      }
-    } catch (e: any) {
-      triggerAction("Gagal menyambung ke server.");
+      const syncKey = `${targetBookName}_${targetChapterNum}_${v.verse}`;
+      pendingSyncRef.current.set(syncKey, payload);
     }
+
+    setSavedVerses(newSavedVerses);
+    
+    if (labelsParam !== null) {
+      triggerAction('Label diperbarui!');
+    } else if (noteParam !== null) {
+      closeNoteSheet();
+      setTimeout(() => triggerAction('Catatan tersimpan!'), 160);
+      setNoteInput('');
+      setSelectedVerses([]);
+    } else {
+      triggerAction(colorParam === '' ? 'Warna dihapus!' : 'Warna diterapkan!');
+    }
+    setIsColorPaletteOpen(false);
+
+    if (syncTimerRef.current) {
+      clearTimeout(syncTimerRef.current);
+    }
+
+    syncTimerRef.current = setTimeout(async () => {
+      const payloads = Array.from(pendingSyncRef.current.values());
+      pendingSyncRef.current.clear();
+      if (payloads.length === 0) return;
+      try {
+        await fetch(`${API_URL}/saved-verses?t=${Date.now()}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payloads)
+        });
+      } catch (err) {
+        console.error('Save Verse Sync Error:', err);
+      }
+    }, 280);
   };
 
   const formatSelectedVersesText = (quoteStyle = false) => {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, memo } from 'react';
+import { useState, useEffect, useMemo, useRef, memo } from 'react';
 import type { BibleVersion } from '../types/bible';
 import { parseLabels, getLabelMeta } from '../types/bible';
 
@@ -190,6 +190,25 @@ function BibleTabComponent({
     });
   };
 
+  const CHUNK_SIZE = 35;
+
+  const [visibleCount, setVisibleCount] = useState<number>(() => {
+    if (highlightedVerse) {
+      return Math.max(CHUNK_SIZE, Number(highlightedVerse) + 10);
+    }
+    return CHUNK_SIZE;
+  });
+
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (highlightedVerse) {
+      setVisibleCount(prev => Math.max(prev, Number(highlightedVerse) + 10));
+    } else {
+      setVisibleCount(CHUNK_SIZE);
+    }
+  }, [currentBook.id, currentChapter, currentVersion.id, highlightedVerse]);
+
   const filteredVerses = useMemo(() => {
     const trimmed = verseSearch.trim();
     if (!trimmed) return bibleVerses;
@@ -198,6 +217,32 @@ function BibleTabComponent({
       v.content.toLowerCase().includes(searchLower) || String(v.verse) === trimmed
     );
   }, [bibleVerses, verseSearch]);
+
+  const isFiltering = verseSearch.trim().length > 0;
+
+  const displayedVerses = useMemo(() => {
+    if (isFiltering) return filteredVerses;
+    return filteredVerses.slice(0, visibleCount);
+  }, [filteredVerses, isFiltering, visibleCount]);
+
+  useEffect(() => {
+    if (isFiltering || visibleCount >= filteredVerses.length) return;
+    const target = sentinelRef.current;
+    if (!target) return;
+
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        setVisibleCount(prev => Math.min(prev + CHUNK_SIZE, filteredVerses.length));
+      }
+    }, {
+      rootMargin: '300px'
+    });
+
+    observer.observe(target);
+    return () => {
+      observer.disconnect();
+    };
+  }, [visibleCount, filteredVerses.length, isFiltering]);
 
   useEffect(() => {
     if (highlightedVerse && !isLoadingBible && bibleVerses.length > 0) {
@@ -253,20 +298,18 @@ function BibleTabComponent({
           </button>
           
           <button
-            onClick={() => { setSelectorStep('book'); setIsSelectorOpen(true); }}
-            className="flex items-center gap-1.5 px-4 py-1.5 bg-gray-900 dark:bg-[#26372D] text-white border border-transparent dark:border-[#354B3E] rounded-full shadow-xs text-[13px] font-bold transition active:scale-95 shrink-0 hover:bg-black dark:hover:bg-[#2D4135]"
-          >
-            <span className="truncate max-w-[125px]">{currentBook.name} {currentChapter}</span>
-            <i className="ph-bold ph-caret-down text-gray-400 dark:text-[#8D9F94] text-xs"></i>
-          </button>
+              onClick={() => { setSelectorStep('book'); setIsSelectorOpen(true); }}
+              className="flex items-center justify-center px-4 py-1.5 bg-gray-900 dark:bg-[#26372D] text-white border border-transparent dark:border-[#354B3E] rounded-full shadow-xs text-[13px] font-bold transition active:scale-95 shrink-0 hover:bg-black dark:hover:bg-[#2D4135]"
+            >
+              <span className="truncate max-w-[130px]">{currentBook.name} {currentChapter}</span>
+            </button>
 
-          <button
-            onClick={() => { setSelectorStep('version'); setIsSelectorOpen(true); }}
-            className="flex items-center gap-1 px-3 py-1.5 bg-white dark:bg-[#24332A] text-gray-800 dark:text-[#E3ECE6] border border-gray-200 dark:border-[#2E3F34] rounded-full shadow-xs text-[12px] font-bold transition active:scale-95 shrink-0 hover:bg-gray-50 dark:hover:bg-[#2B3C32]"
-          >
-            <span>{currentVersion.shortName}</span>
-            <i className="ph-bold ph-caret-down text-gray-400 dark:text-[#8D9F94] text-[10px]"></i>
-          </button>
+            <button
+              onClick={() => { setSelectorStep('version'); setIsSelectorOpen(true); }}
+              className="flex items-center justify-center px-3.5 py-1.5 bg-white dark:bg-[#24332A] text-gray-800 dark:text-[#E3ECE6] border border-gray-200 dark:border-[#2E3F34] rounded-full shadow-xs text-[12px] font-bold transition active:scale-95 shrink-0 hover:bg-gray-50 dark:hover:bg-[#2B3C32]"
+            >
+              <span>{currentVersion.shortName}</span>
+            </button>
 
           <button
             onClick={goToNextChapter}
@@ -376,103 +419,119 @@ function BibleTabComponent({
                 </button>
               </div>
             </div>
-          ) : filteredVerses.length > 0 ? (
-            filteredVerses.map((verseData: any, idx: number) => {
-              const isParagraphStart = String(verseData.content).trim().startsWith('\u00B6');
-              const hasTitle = Boolean(verseData.title && verseData.title.trim() !== '');
-              const savedMatch = savedMap.get(Number(verseData.verse));
-              const highlightClass = savedMatch && savedMatch.color ? COLOR_MAP[savedMatch.color] : '';
-              const hasNote = savedMatch && savedMatch.note && savedMatch.note.trim() !== '';
+          ) : displayedVerses.length > 0 ? (
+  <>
+    {displayedVerses.map((verseData: any, idx: number) => {
+      const isParagraphStart = String(verseData.content).trim().startsWith('\u00B6');
+      const hasTitle = Boolean(verseData.title && verseData.title.trim() !== '');
+      const savedMatch = savedMap.get(Number(verseData.verse));
+      const highlightClass = savedMatch && savedMatch.color 
+        ? COLOR_MAP[savedMatch.color] 
+        : 'transition-colors duration-200 ease-out';
+      const hasNote = savedMatch && savedMatch.note && savedMatch.note.trim() !== '';
 
-              return (
-                <div key={verseData.id} className="space-y-1">
-                  {hasTitle && renderPericopeTitle(verseData.title, idx === 0)}
+      return (
+        <div key={verseData.id} className="space-y-1">
+          {hasTitle && renderPericopeTitle(verseData.title, idx === 0)}
 
-                  {isParagraphStart && !hasTitle && (
-                    <div className="pt-4 pb-1.5 flex items-center gap-2 select-none">
-                      <div className="w-1.5 h-1.5 rounded-full bg-gray-400 dark:bg-[#787C82]"></div>
-                      <div className="h-px bg-gray-200/80 dark:bg-[#52555A] flex-1"></div>
-                    </div>
-                  )}
+          {isParagraphStart && !hasTitle && (
+            <div className="pt-4 pb-1.5 flex items-center gap-2 select-none">
+              <div className="w-1.5 h-1.5 rounded-full bg-gray-400 dark:bg-[#787C82]"></div>
+              <div className="h-px bg-gray-200/80 dark:bg-[#52555A] flex-1"></div>
+            </div>
+          )}
 
-                  <div
-                    id={`verse-row-${verseData.verse}`}
-                    onClick={() => handleVerseSelect(verseData.id)}
-                    onTouchStart={() => handleTouchStart(verseData.id)}
-                    onTouchEnd={handleTouchEnd}
-                    onTouchMove={handleTouchEnd}
-                    onContextMenu={(e) => e.preventDefault()}
-                    className={`verse-item px-3 py-2.5 rounded-xl cursor-pointer flex gap-3 transition-all duration-150 select-none active:scale-[0.985] active:opacity-90 ${
-                      Number(verseData.verse) === Number(highlightedVerse)
-                        ? 'verse-spotlight'
-                        : selectedVerses.includes(verseData.id)
-                        ? 'bg-[#eaedf2] dark:bg-[#28382F]'
-                        : 'bg-transparent'
-                    }`}
-                  >
-                    <div className="flex flex-col items-center gap-1 shrink-0 w-6 pt-0.5">
-                      <span className={`text-[12px] font-bold ${selectedVerses.includes(verseData.id) ? 'text-gray-900 dark:text-[#74C69D]' : 'text-gray-400 dark:text-[#7C8E83]'}`}>
-                        {verseData.verse}
-                      </span>
-                      {hasNote && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setViewingNote({
+          <div
+            id={`verse-row-${verseData.verse}`}
+            onClick={() => handleVerseSelect(verseData.id)}
+            onTouchStart={() => handleTouchStart(verseData.id)}
+            onTouchEnd={handleTouchEnd}
+            onTouchMove={handleTouchEnd}
+            onContextMenu={(e) => e.preventDefault()}
+            className={`verse-item px-3 py-2.5 rounded-xl cursor-pointer flex gap-3 transition-all duration-150 select-none active:scale-[0.985] active:opacity-90 ${
+              Number(verseData.verse) === Number(highlightedVerse)
+                ? 'verse-spotlight'
+                : selectedVerses.includes(verseData.id)
+                ? 'bg-[#eaedf2] dark:bg-[#28382F]'
+                : 'bg-transparent'
+            }`}
+          >
+            <div className="flex flex-col items-center gap-1 shrink-0 w-6 pt-0.5">
+              <span className={`text-[12px] font-bold ${selectedVerses.includes(verseData.id) ? 'text-gray-900 dark:text-[#74C69D]' : 'text-gray-400 dark:text-[#7C8E83]'}`}>
+                {verseData.verse}
+              </span>
+              {hasNote && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setViewingNote({
+                      book: currentBook.name,
+                      chapter: currentChapter,
+                      verse: verseData.verse,
+                      content: verseData.content.replace(/^[\u00B6\s]+/, '').replace(/<t\s*\/>/g, ''),
+                      note: savedMatch.note
+                    });
+                  }}
+                  className="w-4 h-4 flex items-center justify-center text-gray-500 dark:text-[#8D9F94] hover:text-gray-900 dark:hover:text-[#E3ECE6] transition-all duration-150 active:scale-75"
+                  title="Buka Catatan"
+                >
+                  <i className="ph-bold ph-text-align-left text-xs"></i>
+                </button>
+              )}
+            </div>
+            
+            <div className="flex-1">
+              <span className={`text-[15px] leading-relaxed font-normal block text-gray-800 dark:text-[#E3ECE6] ${highlightClass}`}>
+                {renderVerseContent(verseData.content)}
+              </span>
+
+              {parseLabels(savedMatch?.labels).length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-2 transition-all duration-200 ease-out">
+                  {parseLabels(savedMatch.labels).map((lbl: string) => {
+                    const meta = getLabelMeta(lbl);
+                    return (
+                      <span
+                        key={lbl}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (setViewingLabel) {
+                            setViewingLabel({
                               book: currentBook.name,
                               chapter: currentChapter,
                               verse: verseData.verse,
                               content: verseData.content.replace(/^[\u00B6\s]+/, '').replace(/<t\s*\/>/g, ''),
-                              note: savedMatch.note
+                              labels: savedMatch.labels
                             });
-                          }}
-                          className="w-4 h-4 flex items-center justify-center text-gray-500 dark:text-[#8D9F94] hover:text-gray-900 dark:hover:text-[#E3ECE6] transition-all duration-150 active:scale-75"
-                          title="Buka Catatan"
-                        >
-                          <i className="ph-bold ph-text-align-left text-xs"></i>
-                        </button>
-                      )}
-                    </div>
-                    
-                    <div className="flex-1">
-                      <span className={`text-[15px] leading-relaxed font-normal block text-gray-800 dark:text-[#E3ECE6] ${highlightClass}`}>
-                        {renderVerseContent(verseData.content)}
+                          }
+                        }}
+                        className={`animate-label-enter inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10.5px] font-semibold border ${meta.color} active:scale-95 transition-transform select-none`}
+                      >
+                        <i className={`ph-bold ${meta.icon} text-xs text-gray-500 dark:text-[#8D9F94]`}></i>
+                        <span>{lbl}</span>
                       </span>
-
-                      {parseLabels(savedMatch?.labels).length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 mt-2">
-                          {parseLabels(savedMatch.labels).map((lbl: string) => {
-                            const meta = getLabelMeta(lbl);
-                            return (
-                              <span
-                                key={lbl}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (setViewingLabel) {
-                                    setViewingLabel({
-                                      book: currentBook.name,
-                                      chapter: currentChapter,
-                                      verse: verseData.verse,
-                                      content: verseData.content.replace(/^[\u00B6\s]+/, '').replace(/<t\s*\/>/g, ''),
-                                      labels: savedMatch.labels
-                                    });
-                                  }
-                                }}
-                                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10.5px] font-semibold border ${meta.color} active:scale-95 transition-transform select-none`}
-                              >
-                                <i className={`ph-bold ${meta.icon} text-xs text-gray-500 dark:text-[#8D9F94]`}></i>
-                                <span>{lbl}</span>
-                              </span>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                    );
+                  })}
                 </div>
-              );
-            })
-          ) : (
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    })}
+
+    {!isFiltering && visibleCount < filteredVerses.length && (
+      <div ref={sentinelRef} className="py-5 px-3 space-y-4 animate-pulse">
+        <div className="flex gap-3">
+          <div className="w-5 h-4 bg-gray-200 dark:bg-[#2E3F34] rounded-md shrink-0 mt-1"></div>
+          <div className="flex-1 space-y-2.5">
+            <div className="h-4 bg-gray-200 dark:bg-[#2E3F34] rounded-md w-full"></div>
+            <div className="h-4 bg-gray-200 dark:bg-[#2E3F34] rounded-md w-5/6"></div>
+          </div>
+        </div>
+      </div>
+    )}
+  </>
+) : (
             <div className="text-center py-10">
               <i className="ph-duotone ph-warning-circle text-4xl text-gray-300 dark:text-gray-500 mb-3"></i>
               <p className="text-sm font-medium text-gray-500 dark:text-[#A6ACB3]">Ayat tidak ditemukan.</p>

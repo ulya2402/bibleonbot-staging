@@ -126,6 +126,24 @@ html.dark input, html.dark textarea {
 
 .verse-item {
   contain: content;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 54px;
+}
+
+@keyframes labelPopIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-label-enter {
+  animation: labelPopIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
 }
 
 @keyframes tabContentEnter {

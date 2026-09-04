@@ -3,6 +3,7 @@ import { useState } from 'react';
 export default function HomeTab({ dailyVerse, communities, channels, news, userName, isAdmin, setActiveTab, isDark, toggleTheme, isLoadingHome }: any) {
   const [visibleComms, setVisibleComms] = useState(5);
   const [visibleNews, setVisibleNews] = useState(5);
+  const [isCopied, setIsCopied] = useState(false);
 
   const hour = new Date().getHours();
   let greeting = 'Selamat pagi,';
@@ -72,7 +73,7 @@ export default function HomeTab({ dailyVerse, communities, channels, news, userN
 
       {isLoadingHome ? (
         <div className="space-y-6 animate-pulse">
-          <div className="w-full aspect-[16/9] sm:aspect-[2/1] rounded-2xl bg-gray-200 dark:bg-[#1E2A23] border border-transparent dark:border-[#2E3F34]"></div>
+          <div className="w-full min-h-[170px] rounded-2xl bg-gray-200 dark:bg-[#1E2A23] border border-transparent dark:border-[#2E3F34]"></div>
           
           <div className="p-4 rounded-2xl bg-gray-200 dark:bg-[#1E2A23] border border-transparent dark:border-[#2E3F34] space-y-2.5">
             <div className="w-24 h-3 bg-gray-300 dark:bg-[#2A3B31] rounded-md"></div>
@@ -97,43 +98,74 @@ export default function HomeTab({ dailyVerse, communities, channels, news, userN
         </div>
       ) : (
         <>
-          <div className="relative w-full overflow-hidden rounded-2xl border border-gray-200/80 dark:border-[#2E3F34] bg-gray-100 dark:bg-[#1E2A23] select-none aspect-[16/9] sm:aspect-[2/1]">
-            <img
-              src="https://cdn.phototourl.com/member/2026-09-04-a00f79e8-9bba-48c5-92c0-0bb67f1f2b23.png"
-              alt="Banner Terang"
-              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ease-out pointer-events-none ${
-                isDark ? 'opacity-0' : 'opacity-100'
-              }`}
-            />
-            <img
-              src="https://cdn.phototourl.com/member/2026-09-04-05e7c8ca-35bc-49a4-8e7d-a5b1bc06619c.png"
-              alt="Banner Gelap"
-              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ease-out pointer-events-none ${
-                isDark ? 'opacity-100' : 'opacity-0'
-              }`}
-            />
-          </div>
-
-          <div className="relative rounded-2xl bg-white dark:bg-[#1A251F] border border-gray-200/80 dark:border-[#28382F] p-6 text-center space-y-3.5 select-none">
-            <div className="inline-flex items-center justify-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-[#223328] border border-emerald-200/60 dark:border-[#2D4335] text-emerald-800 dark:text-[#74C69D]">
-              <i className="ph-bold ph-cross text-xs"></i>
-              <span className="text-[10px] font-extrabold uppercase tracking-widest">
-                Ayat Hari Ini
-              </span>
+          <div className="space-y-5">
+          <article className="bg-white dark:bg-[#1E2A23] rounded-2xl p-5 border border-gray-200 dark:border-[#2E3F34] flex flex-col justify-between relative select-none">
+            <div className="flex items-center mb-3.5">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gray-100 dark:bg-[#26372D] text-black dark:text-[#74C69D] border border-gray-200 dark:border-[#354B3E]">
+                <i className="ph-bold ph-book-open text-xs"></i>
+                <span className="text-[11px] font-bold uppercase tracking-wider">Ayat Hari Ini</span>
+              </div>
             </div>
 
-            <p className="text-[15.5px] sm:text-[16.5px] font-normal leading-[1.75] text-gray-900 dark:text-[#E3ECE6] tracking-[-0.01em] max-w-[340px] mx-auto">
-              "{dailyVerse ? dailyVerse.verse_text : 'Belum diatur'}"
-            </p>
+            <blockquote className="my-1">
+              <p className="text-[15.5px] sm:text-[16.5px] font-normal text-black dark:text-[#E3ECE6] leading-relaxed tracking-normal">
+                "{dailyVerse ? dailyVerse.verse_text : 'Belum diatur'}"
+              </p>
+            </blockquote>
 
-            <div className="pt-1 flex items-center justify-center gap-2.5">
-              <span className="h-px w-6 bg-gray-200 dark:bg-[#2A3D31]"></span>
-              <span className="text-[12px] font-bold text-emerald-800 dark:text-[#74C69D] tracking-wide">
-                {dailyVerse?.verse_reference || ''}
+            <div className="mt-4 pt-3 border-t border-gray-200 dark:border-[#28382F] flex items-center justify-between">
+              <span className="text-[13px] font-bold text-black dark:text-[#74C69D] tracking-tight">
+                {dailyVerse?.verse_reference || 'Yohanes 3:16'}
               </span>
-              <span className="h-px w-6 bg-gray-200 dark:bg-[#2A3D31]"></span>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!dailyVerse) return;
+                  const textToCopy = `"${dailyVerse.verse_text}" — ${dailyVerse.verse_reference}`;
+                  navigator.clipboard?.writeText(textToCopy);
+                  setIsCopied(true);
+                  setTimeout(() => setIsCopied(false), 2000);
+                }}
+                className="flex items-center gap-1.5 text-[12px] font-semibold text-black dark:text-[#74C69D] hover:opacity-75 py-1 px-2.5 rounded-md active:scale-95 transition-all"
+              >
+                <i className={`ph-bold ${isCopied ? 'ph-check' : 'ph-share-network'} text-[15px]`}></i>
+                <span>{isCopied ? 'Disalin' : 'Bagikan'}</span>
+              </button>
+            </div>
+          </article>
+
+          <div
+            onClick={() => setActiveTab('bible')}
+            className="bg-white dark:bg-[#1E2A23] rounded-2xl border border-gray-200 dark:border-[#2E3F34] p-4 flex flex-col gap-3.5 cursor-pointer active:scale-[0.99] transition-all select-none group"
+          >
+            <div className="relative w-full aspect-[16/9] sm:aspect-[2/1] rounded-xl overflow-hidden bg-gray-100 dark:bg-[#17211C]">
+              <img
+                src="https://iili.io/nJQ1Zq7.jpg"
+                alt="Banner Terang"
+                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ease-out ${
+                  isDark ? 'opacity-0' : 'opacity-100'
+                }`}
+              />
+              <img
+                src="https://iili.io/nJQ657a.jpg"
+                alt="Banner Gelap"
+                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ease-out ${
+                  isDark ? 'opacity-100' : 'opacity-0'
+                }`}
+              />
+            </div>
+
+            <div className="flex items-center justify-between gap-3 px-1">
+              <h2 className="text-[14px] sm:text-[15px] font-bold text-black dark:text-[#E3ECE6] tracking-tight leading-snug">
+                Yuk, luangkan waktu sejenak membaca Alkitab hari ini.
+              </h2>
+              <div className="inline-flex items-center gap-1.5 bg-black dark:bg-[#74C69D] text-white dark:text-[#17211C] px-3.5 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider shrink-0 active:scale-95 transition-transform">
+                <span>Baca</span>
+                <i className="ph-bold ph-arrow-right text-xs"></i>
+              </div>
             </div>
           </div>
+        </div>
 
           <div className="space-y-3">
             <div className="flex items-center justify-between px-1">

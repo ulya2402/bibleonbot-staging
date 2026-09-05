@@ -123,7 +123,7 @@ export default function HomeTab({ dailyVerse, communities, channels, news, userN
         <div className="relative z-20 flex justify-end items-center gap-2 mb-3">
           <button
             onClick={toggleTheme}
-            className="w-9 h-9 bg-white/80 dark:bg-[#1E2A23]/80 backdrop-blur-md text-gray-700 dark:text-[#74C69D] border border-gray-200/80 dark:border-[#2E3F34] rounded-full flex items-center justify-center active:scale-95 shrink-0 transition shadow-2xs"
+            className="w-9 h-9 bg-white/95 dark:bg-[#1E2A23]/95 text-gray-700 dark:text-[#74C69D] border border-gray-200/80 dark:border-[#2E3F34] rounded-full flex items-center justify-center active:scale-95 shrink-0 transition shadow-2xs"
             title={isDark ? "Ganti ke Tema Terang" : "Ganti ke Tema Gelap"}
           >
             <i className={`ph-bold ${isDark ? 'ph-sun text-[#74C69D]' : 'ph-moon text-gray-700'} text-base`}></i>
@@ -131,7 +131,7 @@ export default function HomeTab({ dailyVerse, communities, channels, news, userN
           {isAdmin && (
             <button
               onClick={() => setActiveTab('admin')}
-              className="w-9 h-9 bg-gray-900/90 dark:bg-[#1E2A23]/80 backdrop-blur-md text-white dark:text-[#E3ECE6] rounded-full flex items-center justify-center border border-transparent dark:border-[#2E3F34] relative active:scale-95 shrink-0 transition shadow-2xs"
+              className="w-9 h-9 bg-gray-900 dark:bg-[#1E2A23]/95 text-white dark:text-[#E3ECE6] rounded-full flex items-center justify-center border border-transparent dark:border-[#2E3F34] relative active:scale-95 shrink-0 transition shadow-2xs"
             >
               <i className="ph-bold ph-shield-star text-base"></i>
             </button>
@@ -154,7 +154,7 @@ export default function HomeTab({ dailyVerse, communities, channels, news, userN
 
         <div className="relative z-10">
           {showDailyVerseSkeleton ? (
-            <div className="w-full h-[185px] rounded-2xl bg-white/60 dark:bg-[#1E2A23]/60 backdrop-blur-sm border border-gray-200/60 dark:border-[#2E3F34]/60 animate-pulse p-5 flex flex-col justify-between">
+            <div className="w-full h-[185px] rounded-2xl bg-white/90 dark:bg-[#1E2A23]/90 border border-gray-200/60 dark:border-[#2E3F34]/60 animate-pulse p-5 flex flex-col justify-between">
               <div className="space-y-3">
                 <div className="w-28 h-5 bg-gray-300 dark:bg-[#2A3B31] rounded-full"></div>
                 <div className="w-full h-4 bg-gray-300 dark:bg-[#2A3B31] rounded-md"></div>
@@ -166,7 +166,7 @@ export default function HomeTab({ dailyVerse, communities, channels, news, userN
               </div>
             </div>
           ) : (
-            <article className="bg-white/80 dark:bg-[#1E2A23]/80 backdrop-blur-md rounded-2xl p-5 border border-gray-200/80 dark:border-[#2E3F34] shadow-xs flex flex-col justify-between relative select-none">
+            <article className="bg-white/95 dark:bg-[#1E2A23]/95 rounded-2xl p-5 border border-gray-200/80 dark:border-[#2E3F34] shadow-xs flex flex-col justify-between relative select-none">
               <div className="flex items-center mb-3.5">
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/[0.04] dark:bg-[#26372D] text-black dark:text-[#74C69D] border border-black/[0.04] dark:border-[#354B3E]">
                   <i className="ph-bold ph-book-open text-xs"></i>

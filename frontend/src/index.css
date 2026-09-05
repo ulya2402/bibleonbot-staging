@@ -113,12 +113,15 @@ html.dark input, html.dark textarea {
   }
 }
 
+/* >>>>> PERUBAHAN: AKSILERASI GPU & OVERSCROLL CONTAIN <<<<< */
 .scroll-area {
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: auto;
+  overscroll-behavior-y: contain;
+  transform: translateZ(0);
 }
+/* >>>>> AKHIR PERUBAHAN <<<<< */
 
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

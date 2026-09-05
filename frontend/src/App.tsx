@@ -313,31 +313,33 @@ export default function App() {
     { id: 'indigo', bg: 'bg-indigo-300' },
   ];
 
+  /* >>>>> PERUBAHAN: OPTIMASI LOGIKA SCROLL & CEGAH RE-RENDER <<<<< */
   const handleMainScroll = (e: UIEvent<HTMLElement>) => {
     const currentScrollY = e.currentTarget.scrollTop;
     if (scrollRafId.current !== null) return;
-
     scrollRafId.current = requestAnimationFrame(() => {
       const scrollDifference = currentScrollY - lastScrollY.current;
-      let nextNavState = isNavVisibleRef.current;
-
-      if (currentScrollY <= 30) {
-        nextNavState = true;
-      } else if (scrollDifference > 8 && currentScrollY > 60) {
-        nextNavState = false;
-      } else if (scrollDifference < -8) {
-        nextNavState = true;
+      if (currentScrollY <= 20) {
+        if (!isNavVisibleRef.current) {
+          isNavVisibleRef.current = true;
+          setIsNavVisible(true);
+        }
+      } else if (scrollDifference > 30 && currentScrollY > 80) {
+        if (isNavVisibleRef.current) {
+          isNavVisibleRef.current = false;
+          setIsNavVisible(false);
+        }
+      } else if (scrollDifference < -30) {
+        if (!isNavVisibleRef.current) {
+          isNavVisibleRef.current = true;
+          setIsNavVisible(true);
+        }
       }
-
-      if (nextNavState !== isNavVisibleRef.current) {
-        isNavVisibleRef.current = nextNavState;
-        setIsNavVisible(nextNavState);
-      }
-
       lastScrollY.current = currentScrollY;
       scrollRafId.current = null;
     });
   };
+  /* >>>>> AKHIR PERUBAHAN <<<<< */
 
   const fetchHomeData = async () => {
     try {
@@ -2088,12 +2090,44 @@ export default function App() {
         )}
       </div>
 
-      <nav className={`absolute left-1/2 -translate-x-1/2 bg-white dark:bg-[#1E2A23]/95 backdrop-blur-xl border border-gray-200 dark:border-[#2E3F34] rounded-[2rem] px-5 py-3.5 flex justify-center gap-6 items-center z-40 w-max shadow-[0_10px_40px_-15px_rgba(0,0,0,0.15)] dark:shadow-[0_15px_40px_-10px_rgba(0,0,0,0.6)] transition-all duration-300 ${(selectedVerses.length > 0 || isNoteSheetOpen || isCreateLabelOpen || isSelectorOpen || isNoteHistoryOpen || !isNavVisible) ? 'opacity-0 invisible translate-y-24 pointer-events-none' : 'opacity-100 visible translate-y-0'}`} style={{ bottom: 'calc(max(var(--tg-safe-bottom, 0px), env(safe-area-inset-bottom, 0px)) + 1.5rem)' }}>
-        <button onClick={() => switchActiveTab('home')} className={`flex flex-col items-center gap-1 transition-transform duration-150 active:scale-90 active:opacity-70 select-none ${activeTab === 'home' ? 'text-gray-900 dark:text-[#74C69D] scale-110' : 'text-gray-400 dark:text-[#8D9F94] hover:text-gray-600 dark:hover:text-[#E3ECE6]'}`}><i className={`${activeTab === 'home' ? 'ph-fill' : 'ph'} ph-house text-2xl`}></i><span className="text-[9px] font-extrabold tracking-wider uppercase">Home</span></button>
-        <button onClick={() => switchActiveTab('bible')} className={`flex flex-col items-center gap-1 transition-transform duration-150 active:scale-90 active:opacity-70 select-none ${activeTab === 'bible' ? 'text-gray-900 dark:text-[#74C69D] scale-110' : 'text-gray-400 dark:text-[#8D9F94] hover:text-gray-600 dark:hover:text-[#E3ECE6]'}`}><i className={`${activeTab === 'bible' ? 'ph-fill' : 'ph'} ph-book-open-text text-2xl`}></i><span className="text-[9px] font-extrabold tracking-wider uppercase">Alkitab</span></button>
-        <button onClick={() => switchActiveTab('discover')} className={`flex flex-col items-center gap-1 transition-transform duration-150 active:scale-90 active:opacity-70 select-none ${activeTab === 'discover' ? 'text-gray-900 dark:text-[#74C69D] scale-110' : 'text-gray-400 dark:text-[#8D9F94] hover:text-gray-600 dark:hover:text-[#E3ECE6]'}`}><i className={`${activeTab === 'discover' ? 'ph-fill' : 'ph'} ph-compass text-2xl`}></i><span className="text-[9px] font-extrabold tracking-wider uppercase">Temukan</span></button>
-        <button onClick={() => switchActiveTab('saved')} className={`flex flex-col items-center gap-1 transition-transform duration-150 active:scale-90 active:opacity-70 select-none ${activeTab === 'saved' ? 'text-gray-900 dark:text-[#74C69D] scale-110' : 'text-gray-400 dark:text-[#8D9F94] hover:text-gray-600 dark:hover:text-[#E3ECE6]'}`}><i className={`${activeTab === 'saved' ? 'ph-fill' : 'ph'} ph-bookmark-simple text-2xl`}></i><span className="text-[9px] font-extrabold tracking-wider uppercase">Simpan</span></button>
+      {/* >>>>> PERUBAHAN: DESAIN MODERN FLOATING CAPSULE ISLAND <<<<< */}
+      <nav 
+        className={`fixed left-1/2 -translate-x-1/2 bg-white/90 dark:bg-[#1E2A23]/90 backdrop-blur-md border border-black/[0.06] dark:border-white/[0.08] ring-1 ring-black/[0.03] dark:ring-white/[0.04] rounded-[2.5rem] p-1.5 flex items-center gap-1 z-40 w-max shadow-[0_20px_40px_-15px_rgba(0,0,0,0.18)] dark:shadow-[0_25px_50px_-15px_rgba(0,0,0,0.65)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] select-none ${(selectedVerses.length > 0 || isNoteSheetOpen || isCreateLabelOpen || isSelectorOpen || isNoteHistoryOpen || !isNavVisible) ? 'opacity-0 invisible translate-y-24 scale-90 pointer-events-none' : 'opacity-100 visible translate-y-0 scale-100'}`} 
+        style={{ bottom: 'calc(max(var(--tg-safe-bottom, 0px), env(safe-area-inset-bottom, 0px)) + 1.25rem)' }}
+      >
+        <button 
+          onClick={() => { triggerHaptic(); switchActiveTab('home'); }} 
+          className={`relative flex items-center gap-2 px-3.5 py-2 rounded-full text-[12px] font-bold transition-all duration-200 active:scale-90 ${activeTab === 'home' ? 'bg-gray-950 dark:bg-[#74C69D] text-white dark:text-[#141E18] shadow-sm' : 'text-gray-400 dark:text-[#8D9F94] hover:text-gray-800 dark:hover:text-[#E3ECE6]'}`}
+        >
+          <i className={`${activeTab === 'home' ? 'ph-fill' : 'ph-bold'} ph-house text-lg`}></i>
+          {activeTab === 'home' && <span className="tracking-tight animate-fadeIn">Home</span>}
+        </button>
+
+        <button 
+          onClick={() => { triggerHaptic(); switchActiveTab('bible'); }} 
+          className={`relative flex items-center gap-2 px-3.5 py-2 rounded-full text-[12px] font-bold transition-all duration-200 active:scale-90 ${activeTab === 'bible' ? 'bg-gray-950 dark:bg-[#74C69D] text-white dark:text-[#141E18] shadow-sm' : 'text-gray-400 dark:text-[#8D9F94] hover:text-gray-800 dark:hover:text-[#E3ECE6]'}`}
+        >
+          <i className={`${activeTab === 'bible' ? 'ph-fill' : 'ph-bold'} ph-book-open-text text-lg`}></i>
+          {activeTab === 'bible' && <span className="tracking-tight animate-fadeIn">Alkitab</span>}
+        </button>
+
+        <button 
+          onClick={() => { triggerHaptic(); switchActiveTab('discover'); }} 
+          className={`relative flex items-center gap-2 px-3.5 py-2 rounded-full text-[12px] font-bold transition-all duration-200 active:scale-90 ${activeTab === 'discover' ? 'bg-gray-950 dark:bg-[#74C69D] text-white dark:text-[#141E18] shadow-sm' : 'text-gray-400 dark:text-[#8D9F94] hover:text-gray-800 dark:hover:text-[#E3ECE6]'}`}
+        >
+          <i className={`${activeTab === 'discover' ? 'ph-fill' : 'ph-bold'} ph-compass text-lg`}></i>
+          {activeTab === 'discover' && <span className="tracking-tight animate-fadeIn">Temukan</span>}
+        </button>
+
+        <button 
+          onClick={() => { triggerHaptic(); switchActiveTab('saved'); }} 
+          className={`relative flex items-center gap-2 px-3.5 py-2 rounded-full text-[12px] font-bold transition-all duration-200 active:scale-90 ${activeTab === 'saved' ? 'bg-gray-950 dark:bg-[#74C69D] text-white dark:text-[#141E18] shadow-sm' : 'text-gray-400 dark:text-[#8D9F94] hover:text-gray-800 dark:hover:text-[#E3ECE6]'}`}
+        >
+          <i className={`${activeTab === 'saved' ? 'ph-fill' : 'ph-bold'} ph-bookmark-simple text-lg`}></i>
+          {activeTab === 'saved' && <span className="tracking-tight animate-fadeIn">Simpan</span>}
+        </button>
       </nav>
+      {/* >>>>> AKHIR PERUBAHAN <<<<< */}
 
       <div 
         className={`fixed inset-x-0 z-[200] flex justify-center pointer-events-none transition-opacity duration-150 ${

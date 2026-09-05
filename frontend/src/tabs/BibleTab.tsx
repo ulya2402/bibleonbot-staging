@@ -264,18 +264,23 @@ function BibleTabComponent({
     }
   }, [highlightedVerse, isLoadingBible, bibleVerses, setHighlightedVerse]);
 
+  /* >>>>> PERUBAHAN: CACHE PERHITUNGAN SAVED VERSES DENGAN USEMEMO <<<<< */
   const isScopeMismatch = currentVersion.testamentScope === 'NT' && currentBook.test === 'PL';
 
-  const savedMap = new Map<number, any>();
-  for (let i = 0; i < savedVerses.length; i++) {
-    const sv = savedVerses[i];
-    const isBookMatch = 
-      String(sv.book).toLowerCase() === String(currentBook.name).toLowerCase() ||
-      String(sv.book).toLowerCase() === String(currentBook.id).toLowerCase();
-    if (isBookMatch && Number(sv.chapter) === Number(currentChapter)) {
-      savedMap.set(Number(sv.verse), sv);
+  const savedMap = useMemo(() => {
+    const map = new Map<number, any>();
+    for (let i = 0; i < savedVerses.length; i++) {
+      const sv = savedVerses[i];
+      const isBookMatch = 
+        String(sv.book).toLowerCase() === String(currentBook.name).toLowerCase() ||
+        String(sv.book).toLowerCase() === String(currentBook.id).toLowerCase();
+      if (isBookMatch && Number(sv.chapter) === Number(currentChapter)) {
+        map.set(Number(sv.verse), sv);
+      }
     }
-  }
+    return map;
+  }, [savedVerses, currentBook.name, currentBook.id, currentChapter]);
+  /* >>>>> AKHIR PERUBAHAN <<<<< */
 
   return (
     <div className="relative">
@@ -439,21 +444,23 @@ function BibleTabComponent({
               <div className="h-px bg-gray-200/80 dark:bg-[#52555A] flex-1"></div>
             </div>
           )}
-          <div
-            id={`verse-row-${verseData.verse}`}
-            onClick={() => handleVerseSelect(verseData.id)}
-            onTouchStart={() => handleTouchStart(verseData.id)}
-            onTouchEnd={handleTouchEnd}
-            onTouchMove={handleTouchEnd}
-            onContextMenu={(e) => e.preventDefault()}
-            className={`verse-item px-3 py-2.5 rounded-xl cursor-pointer flex gap-3 transition-all duration-150 select-none active:scale-[0.985] active:opacity-90 ${
-              Number(verseData.verse) === Number(highlightedVerse)
-                ? 'verse-spotlight'
-                : selectedVerses.includes(verseData.id)
-                ? 'bg-[#eaedf2] dark:bg-[#28382F]'
-                : 'bg-transparent'
-            }`}
-          >
+          {/* >>>>> PERUBAHAN: GANTI TRANSITION-ALL MENJADI TRANSITION-COLORS <<<<< */}
+                    <div
+                      id={`verse-row-${verseData.verse}`}
+                      onClick={() => handleVerseSelect(verseData.id)}
+                      onTouchStart={() => handleTouchStart(verseData.id)}
+                      onTouchEnd={handleTouchEnd}
+                      onTouchMove={handleTouchEnd}
+                      onContextMenu={(e) => e.preventDefault()}
+                      className={`verse-item px-3 py-2.5 rounded-xl cursor-pointer flex gap-3 transition-colors duration-150 select-none active:scale-[0.985] active:opacity-90 ${
+                        Number(verseData.verse) === Number(highlightedVerse)
+                          ? 'verse-spotlight'
+                          : selectedVerses.includes(verseData.id)
+                          ? 'bg-[#eaedf2] dark:bg-[#28382F]'
+                          : 'bg-transparent'
+                      }`}
+                    >
+                    {/* >>>>> AKHIR PERUBAHAN <<<<< */}
             <div className="flex flex-col items-center gap-1 shrink-0 w-6 pt-0.5">
               <span className={`text-[12px] font-bold ${selectedVerses.includes(verseData.id) ? 'text-gray-900 dark:text-[#74C69D]' : 'text-gray-400 dark:text-[#7C8E83]'}`}>
                 {verseData.verse}

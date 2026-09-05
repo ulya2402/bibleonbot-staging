@@ -159,3 +159,29 @@ export const getLabelMeta = (labelName: string): VerseLabel => {
     color: 'bg-[#f4f5f7] dark:bg-[#26372D] text-gray-800 dark:text-[#E3ECE6] border-gray-200/90 dark:border-[#2E3F34]'
   };
 };
+
+export interface NoteEntry {
+  id: string;
+  text: string;
+  version?: string;
+  createdAt: string;
+}
+
+export const parseNotes = (raw: any): NoteEntry[] => {
+  if (!raw) return [];
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (!trimmed) return [];
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          return parsed.filter((it: any) => it && typeof it.text === 'string' && it.text.trim() !== '');
+        }
+      } catch (e) {}
+    }
+    return [{ id: 'legacy', text: trimmed, version: '', createdAt: '' }];
+  }
+  if (Array.isArray(raw)) return raw;
+  return [];
+};

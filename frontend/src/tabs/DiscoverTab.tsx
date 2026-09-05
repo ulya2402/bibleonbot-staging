@@ -19,7 +19,7 @@ export default function DiscoverTab({ books, onNavigateToVerse }: DiscoverTabPro
   }, [books, query]);
 
   return (
-    <div className="px-5 pt-3 pb-12 space-y-4">
+    <div className="animate-fadeIn px-5 pt-3 pb-12 space-y-4">
       <div>
         <h2 className="font-extrabold text-2xl tracking-tight text-gray-900 dark:text-[#E3ECE6]">Temukan</h2>
         <p className="text-[13px] text-gray-500 dark:text-[#8D9F94] font-medium mt-0.5">

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, memo } from 'react';
 import type { BibleVersion } from '../types/bible';
-import { parseLabels, getLabelMeta } from '../types/bible';
+import { parseLabels, getLabelMeta, parseNotes } from '../types/bible';
 
 interface BibleTabProps {
   currentBook: any;
@@ -17,6 +17,7 @@ interface BibleTabProps {
   handleTouchEnd: () => void;
   setViewingNote: (note: any) => void;
   setViewingLabel?: (data: any) => void;
+  onOpenNoteHistory?: (data: any) => void;
   goToPrevChapter: () => void;
   goToNextChapter: () => void;
   canGoPrev: boolean;
@@ -42,6 +43,7 @@ function BibleTabComponent({
   handleTouchEnd,
   setViewingNote,
   setViewingLabel,
+  onOpenNoteHistory,
   goToPrevChapter,
   goToNextChapter,
   canGoPrev,
@@ -251,12 +253,10 @@ function BibleTabComponent({
         if (targetElement) {
           targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
-      }, 100);
-
+      }, 120);
       const clearTimer = setTimeout(() => {
         if (setHighlightedVerse) setHighlightedVerse(null);
-      }, 2000);
-
+      }, 1600);
       return () => {
         clearTimeout(timer);
         clearTimeout(clearTimer);
@@ -269,10 +269,10 @@ function BibleTabComponent({
   const savedMap = new Map<number, any>();
   for (let i = 0; i < savedVerses.length; i++) {
     const sv = savedVerses[i];
-    if (
-      String(sv.book).toLowerCase() === String(currentBook.name).toLowerCase() &&
-      Number(sv.chapter) === Number(currentChapter)
-    ) {
+    const isBookMatch = 
+      String(sv.book).toLowerCase() === String(currentBook.name).toLowerCase() ||
+      String(sv.book).toLowerCase() === String(currentBook.id).toLowerCase();
+    if (isBookMatch && Number(sv.chapter) === Number(currentChapter)) {
       savedMap.set(Number(sv.verse), sv);
     }
   }
@@ -280,10 +280,10 @@ function BibleTabComponent({
   return (
     <div className="relative">
       <div 
-        className="sticky top-0 z-30 px-5 pb-3 transition-colors duration-150 border-b border-gray-200/50 dark:border-[#2E3F34]/50 shadow-2xs"
+        className="sticky top-0 z-30 px-5 pb-3 backdrop-blur-xl transition-colors duration-150 border-b border-gray-200/50 dark:border-[#2E3F34]/50 shadow-2xs"
         style={{
           paddingTop: 'calc(max(var(--tg-safe-top, 0px), env(safe-area-inset-top, 0px)) + 3rem)',
-          backgroundColor: isDark ? 'rgba(23, 33, 28, 0.97)' : 'rgba(250, 250, 250, 0.97)'
+          backgroundColor: isDark ? 'rgba(23, 33, 28, 0.85)' : 'rgba(250, 250, 250, 0.85)'
         }}
       >
         <div className="flex items-center justify-center gap-1.5 max-w-[420px] mx-auto w-full">
@@ -426,21 +426,19 @@ function BibleTabComponent({
       const hasTitle = Boolean(verseData.title && verseData.title.trim() !== '');
       const savedMatch = savedMap.get(Number(verseData.verse));
       const highlightClass = savedMatch && savedMatch.color 
-        ? COLOR_MAP[savedMatch.color] 
+        ? `${COLOR_MAP[savedMatch.color]} transition-colors duration-200 ease-out` 
         : 'transition-colors duration-200 ease-out';
-      const hasNote = savedMatch && savedMatch.note && savedMatch.note.trim() !== '';
-
+      const notesList = parseNotes(savedMatch?.note);
+      const hasNote = notesList.length > 0;
       return (
         <div key={verseData.id} className="space-y-1">
           {hasTitle && renderPericopeTitle(verseData.title, idx === 0)}
-
           {isParagraphStart && !hasTitle && (
             <div className="pt-4 pb-1.5 flex items-center gap-2 select-none">
               <div className="w-1.5 h-1.5 rounded-full bg-gray-400 dark:bg-[#787C82]"></div>
               <div className="h-px bg-gray-200/80 dark:bg-[#52555A] flex-1"></div>
             </div>
           )}
-
           <div
             id={`verse-row-${verseData.verse}`}
             onClick={() => handleVerseSelect(verseData.id)}
@@ -462,18 +460,29 @@ function BibleTabComponent({
               </span>
               {hasNote && (
                 <button
+                  type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setViewingNote({
-                      book: currentBook.name,
-                      chapter: currentChapter,
-                      verse: verseData.verse,
-                      content: verseData.content.replace(/^[\u00B6\s]+/, '').replace(/<t\s*\/>/g, ''),
-                      note: savedMatch.note
-                    });
+                    if (onOpenNoteHistory) {
+                      onOpenNoteHistory({
+                        book: currentBook.name,
+                        chapter: currentChapter,
+                        verse: verseData.verse,
+                        content: verseData.content.replace(/^[\u00B6\s]+/, '').replace(/<t\s*\/>/g, ''),
+                        notes: notesList
+                      });
+                    } else {
+                      setViewingNote({
+                        book: currentBook.name,
+                        chapter: currentChapter,
+                        verse: verseData.verse,
+                        content: verseData.content.replace(/^[\u00B6\s]+/, '').replace(/<t\s*\/>/g, ''),
+                        note: savedMatch.note
+                      });
+                    }
                   }}
                   className="w-4 h-4 flex items-center justify-center text-gray-500 dark:text-[#8D9F94] hover:text-gray-900 dark:hover:text-[#E3ECE6] transition-all duration-150 active:scale-75"
-                  title="Buka Catatan"
+                  title="Riwayat Catatan"
                 >
                   <i className="ph-bold ph-text-align-left text-xs"></i>
                 </button>
@@ -486,7 +495,7 @@ function BibleTabComponent({
               </span>
 
               {parseLabels(savedMatch?.labels).length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-2 transition-all duration-200 ease-out">
+                <div className="flex flex-wrap gap-1.5 mt-2 transition-opacity duration-150">
                   {parseLabels(savedMatch.labels).map((lbl: string) => {
                     const meta = getLabelMeta(lbl);
                     return (
@@ -504,7 +513,7 @@ function BibleTabComponent({
                             });
                           }
                         }}
-                        className={`animate-label-enter inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10.5px] font-semibold border ${meta.color} active:scale-95 transition-transform select-none`}
+                        className={`animate-label-enter inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10.5px] font-semibold border ${meta.color} active:scale-95 transition-transform duration-100 select-none`}
                       >
                         <i className={`ph-bold ${meta.icon} text-xs text-gray-500 dark:text-[#8D9F94]`}></i>
                         <span>{lbl}</span>
@@ -521,7 +530,7 @@ function BibleTabComponent({
 
     {!isFiltering && visibleCount < filteredVerses.length && (
       <div ref={sentinelRef} className="py-5 px-3 space-y-4 animate-pulse">
-        <div className="flex gap-3">
+        <div className="flex gap-3">  
           <div className="w-5 h-4 bg-gray-200 dark:bg-[#2E3F34] rounded-md shrink-0 mt-1"></div>
           <div className="flex-1 space-y-2.5">
             <div className="h-4 bg-gray-200 dark:bg-[#2E3F34] rounded-md w-full"></div>

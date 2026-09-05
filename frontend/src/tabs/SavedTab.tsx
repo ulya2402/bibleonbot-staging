@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { parseLabels, getLabelMeta } from '../types/bible';
+import { parseLabels, getLabelMeta, parseNotes } from '../types/bible';
 
 const API_URL = 'https://bibleonbot-backend-staging.rchtxtdev.workers.dev/api';
 
@@ -10,8 +10,22 @@ export default function SavedTab({ savedVerses = [], fetchSaved, onNavigateToVer
   const [labelFilter, setLabelFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'book'>('newest');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isClosingFilter, setIsClosingFilter] = useState(false);
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  const toggleFilter = () => {
+    if (isFilterOpen) {
+      setIsClosingFilter(true);
+      setTimeout(() => {
+        setIsFilterOpen(false);
+        setIsClosingFilter(false);
+      }, 190);
+    } else {
+      setIsClosingFilter(false);
+      setIsFilterOpen(true);
+    }
+  };
   const [hiddenIds, setHiddenIds] = useState<number[]>([]);
 
   const sortRef = useRef<HTMLDivElement | null>(null);
@@ -93,6 +107,48 @@ export default function SavedTab({ savedVerses = [], fetchSaved, onNavigateToVer
     }
   };
 
+  const handleDeleteSingleNote = async (verseGroup: any, noteId: string) => {
+    const tg = (window as any).Telegram?.WebApp;
+    const executeDelete = async () => {
+      const allNotes = parseNotes(verseGroup.note);
+      const remaining = allNotes.filter((n: any) => n.id !== noteId);
+      const finalNote = remaining.length > 0 ? JSON.stringify(remaining) : '';
+      const payload = (verseGroup.groupedIds || [verseGroup.id]).map((id: number) => {
+        const matchingSaved = savedVerses.find((sv: any) => sv.id === id) || verseGroup;
+        return {
+          id: id,
+          user_id: matchingSaved.user_id,
+          book: matchingSaved.book,
+          chapter: matchingSaved.chapter,
+          verse: matchingSaved.verse,
+          content: matchingSaved.content,
+          color: matchingSaved.color || '',
+          note: finalNote,
+          version: matchingSaved.version || 'AYT',
+          labels: matchingSaved.labels || ''
+        };
+      });
+
+      try {
+        await fetch(`${API_URL}/saved-verses?t=${Date.now()}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        fetchSaved();
+      } catch (error) {
+        console.error('Delete note error:', error);
+      }
+    };
+    if (tg && typeof tg.showConfirm === 'function') {
+      tg.showConfirm('Hapus catatan ini?', (confirmed: boolean) => {
+        if (confirmed) executeDelete();
+      });
+    } else {
+      if (confirm('Hapus catatan ini?')) executeDelete();
+    }
+  };
+
   const filteredVerses = useMemo(() => {
     const visibleItems = savedVerses.filter((v: any) => 
       !hiddenIds.includes(v.id) && 
@@ -101,7 +157,7 @@ export default function SavedTab({ savedVerses = [], fetchSaved, onNavigateToVer
 
     let tabItems = visibleItems;
     if (viewMode === 'notes') {
-      tabItems = visibleItems.filter((v: any) => v.note && v.note.trim() !== '');
+      tabItems = visibleItems.filter((v: any) => parseNotes(v.note).length > 0);
     } else if (viewMode === 'highlights') {
       tabItems = visibleItems.filter((v: any) => v.color && v.color.trim() !== '');
     } else if (viewMode === 'labels') {
@@ -212,7 +268,15 @@ export default function SavedTab({ savedVerses = [], fetchSaved, onNavigateToVer
     });
   }, [savedVerses, hiddenIds, viewMode, colorFilter, timeFilter, sortBy]);
 
-  const totalNotesCount = useMemo(() => savedVerses.filter((v: any) => v.note && v.note.trim() !== '' && !hiddenIds.includes(v.id)).length, [savedVerses, hiddenIds]);
+  const totalNotesCount = useMemo(() => {
+    let count = 0;
+    savedVerses.forEach((v: any) => {
+      if (!hiddenIds.includes(v.id)) {
+        count += parseNotes(v.note).length;
+      }
+    });
+    return count;
+  }, [savedVerses, hiddenIds]);
   const totalHighlightsCount = useMemo(() => savedVerses.filter((v: any) => v.color && v.color.trim() !== '' && !hiddenIds.includes(v.id)).length, [savedVerses, hiddenIds]);
   const totalLabelsCount = useMemo(() => savedVerses.filter((v: any) => v.labels && v.labels.trim() !== '' && !hiddenIds.includes(v.id)).length, [savedVerses, hiddenIds]);
 
@@ -235,11 +299,11 @@ export default function SavedTab({ savedVerses = [], fetchSaved, onNavigateToVer
           <p className="text-[13px] text-gray-400 dark:text-[#8D9F94] font-medium mt-0.5">Koleksi ayat dan catatan pribadi Anda</p>
         </div>
         <button
-          onClick={() => setIsFilterOpen(prev => !prev)}
+          onClick={toggleFilter}
           className={`w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90 border ${
             isFilterOpen || hasActiveFilter
-              ? 'bg-gray-900 dark:bg-[#26372D] text-white dark:text-[#74C69D] border-gray-900 dark:border-[#74C69D] shadow-sm'
-              : 'bg-white dark:bg-[#1E2A23] text-gray-700 dark:text-[#8D9F94] border-gray-200 dark:border-[#2E3F34] shadow-2xs hover:bg-gray-50 dark:hover:bg-[#26372D]'
+              ? 'bg-gray-900 dark:bg-[#26372D] text-white dark:text-[#74C69D] border-gray-900 dark:border-[#74C69D]'
+              : 'bg-white dark:bg-[#1E2A23] text-gray-700 dark:text-[#8D9F94] border-gray-200 dark:border-[#2E3F34] hover:bg-gray-50 dark:hover:bg-[#26372D]'
           }`}
           title="Filter"
         >
@@ -290,8 +354,8 @@ export default function SavedTab({ savedVerses = [], fetchSaved, onNavigateToVer
         </button>
       </div>
 
-      {isFilterOpen && (
-        <div className="bg-white dark:bg-[#1E2A23] border border-gray-200/90 dark:border-[#2E3F34] rounded-2xl p-3.5 mb-5 shadow-lg space-y-3 relative z-30 animate-fadeIn">
+      {(isFilterOpen || isClosingFilter) && (
+        <div className={`bg-white dark:bg-[#1E2A23] border border-gray-200/90 dark:border-[#2E3F34] rounded-2xl p-3.5 mb-5 space-y-3 relative z-30 ${isClosingFilter ? 'animate-fadeOut' : 'animate-fadeIn'}`}>
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
               <button
@@ -335,19 +399,17 @@ export default function SavedTab({ savedVerses = [], fetchSaved, onNavigateToVer
                 Bulan Ini
               </button>
             </div>
-
-           <div className="relative shrink-0" ref={sortRef}>
+            <div className="relative shrink-0" ref={sortRef}>
               <button
                 onClick={() => setIsSortOpen(prev => !prev)}
-                className="flex items-center gap-1.5 bg-white dark:bg-[#17211C] border border-gray-200 dark:border-[#2E3F34] hover:bg-gray-50 dark:hover:bg-[#26372D] px-3 py-1 rounded-xl text-[11px] font-bold text-gray-600 dark:text-[#8D9F94] transition active:scale-95 shadow-2xs"
+                className="flex items-center gap-1.5 bg-white dark:bg-[#17211C] border border-gray-200 dark:border-[#2E3F34] hover:bg-gray-50 dark:hover:bg-[#26372D] px-3 py-1 rounded-xl text-[11px] font-bold text-gray-600 dark:text-[#8D9F94] transition active:scale-95"
               >
                 <i className={currentSortObj.icon}></i>
                 <span>{currentSortObj.label}</span>
                 <i className={`ph-bold ph-caret-down text-[10px] text-gray-400 dark:text-[#8D9F94] transition-transform ${isSortOpen ? 'rotate-180' : ''}`}></i>
               </button>
-
               {isSortOpen && (
-                <div className="absolute right-0 top-full mt-1.5 w-36 bg-white dark:bg-[#1E2A23] border border-gray-200 dark:border-[#2E3F34] rounded-2xl shadow-2xl p-1 z-[70] animate-fadeIn">
+                <div className="absolute right-0 top-full mt-1.5 w-36 bg-white dark:bg-[#1E2A23] border border-gray-200 dark:border-[#2E3F34] rounded-2xl p-1 z-[70] animate-fadeIn">
                   {SORT_OPTIONS.map((opt) => {
                     const isSelected = sortBy === opt.id;
                     return (
@@ -491,12 +553,48 @@ export default function SavedTab({ savedVerses = [], fetchSaved, onNavigateToVer
                       </div>
                     )}
 
-                    {v.note && (
-                      <div className="mt-3 pt-2.5 border-t border-gray-100 dark:border-[#2E3F34] flex items-start gap-2">
-                        <i className="ph-bold ph-text-align-left text-gray-400 dark:text-[#8D9F94] text-xs mt-0.5 shrink-0"></i>
-                        <p className="text-[13px] text-gray-800 dark:text-[#E3ECE6] leading-relaxed font-normal whitespace-pre-wrap flex-1">
-                          {v.note}
-                        </p>
+                    {parseNotes(v.note).length > 0 && (
+                      <div className="space-y-2 mt-3 pt-2.5 border-t border-gray-100 dark:border-[#2E3F34]">
+                        {parseNotes(v.note).map((nItem: any, nIdx: number) => (
+                          <div
+                            key={nItem.id || nIdx}
+                            className="p-3 bg-[#fafafa] dark:bg-[#17211C] border border-gray-200 dark:border-[#2E3F34] rounded-xl space-y-1.5"
+                          >
+                            <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#2E3F34] pb-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-[#8D9F94]">
+                          Catatan #{nIdx + 1}
+                        </span>
+                        {nItem.version && (
+                          <span className="text-[9.5px] font-bold text-gray-700 dark:text-[#74C69D] bg-gray-100 dark:bg-[#27382F] px-1.5 py-0.5 rounded border border-gray-200/70 dark:border-[#354B3E]">
+                            {nItem.version}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {nItem.createdAt && (
+                          <span className="text-[10px] text-gray-400 dark:text-[#8D9F94]">
+                            {formatRelativeTime(nItem.createdAt)}
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteSingleNote(v, nItem.id);
+                          }}
+                          className="w-7 h-7 flex items-center justify-center rounded-full text-gray-400 dark:text-[#8D9F94] hover:text-gray-900 dark:hover:text-white active:scale-80 transition-colors select-none"
+                          title="Hapus Catatan"
+                        >
+                          <i className="ph-bold ph-trash text-xs"></i>
+                        </button>
+                      </div>
+                    </div>
+                            <p className="text-[13px] leading-relaxed text-gray-800 dark:text-[#E3ECE6] whitespace-pre-wrap">
+                              {nItem.text}
+                            </p>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>

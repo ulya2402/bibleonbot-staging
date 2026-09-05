@@ -10,7 +10,8 @@ import {
   ALL_BIBLE_VERSIONS, 
   DEFAULT_BIBLE_VERSION,
   PRESET_LABELS,
-  parseLabels
+  parseLabels,
+  parseNotes
 } from './types/bible';
 import type { BibleVersion, VerseLabel } from './types/bible';
 
@@ -143,11 +144,17 @@ export default function App() {
     } catch (e) {}
   };
   const [highlightedVerse, setHighlightedVerse] = useState<number | null>(null);
-
   const [isNoteSheetOpen, setIsNoteSheetOpen] = useState(false);
+  const [isClosingNoteSheet, setIsClosingNoteSheet] = useState(false);
   const [noteSheetData, setNoteSheetData] = useState<any>(null);
   const [noteInput, setNoteInput] = useState('');
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [isNoteLoading, setIsNoteLoading] = useState(true);
   const [isNoteRefExpanded, setIsNoteRefExpanded] = useState(false);
+
+  const [isNoteHistoryOpen, setIsNoteHistoryOpen] = useState(false);
+  const [isClosingNoteHistory, setIsClosingNoteHistory] = useState(false);
+  const [noteHistoryData, setNoteHistoryData] = useState<any>(null);
 
   const [isLabelPaletteOpen, setIsLabelPaletteOpen] = useState(false);
   const [isCreateLabelOpen, setIsCreateLabelOpen] = useState(false);
@@ -280,7 +287,6 @@ export default function App() {
   const scrollRafId = useRef<number | null>(null);
   const mainRef = useRef<HTMLElement | null>(null);
 
-  
   useEffect(() => {
     return () => {
       if (scrollRafId.current !== null) {
@@ -367,6 +373,7 @@ export default function App() {
       if (tg) {
         tg.ready();
         tg.expand();
+        try { tg.disableVerticalSwipes?.(); } catch (e) {}
         try { tg.enableClosingConfirmation?.(); } catch (e) {}
         const initialBg = isDark ? '#17211C' : '#fafafa';
         try { tg.setHeaderColor?.(initialBg); tg.setBackgroundColor?.(initialBg); } catch (e) {}
@@ -462,14 +469,111 @@ export default function App() {
     }
   }, [userId]);
 
+  useEffect(() => {
+    if (isNoteSheetOpen) {
+      setIsNoteLoading(true);
+      const timer = setTimeout(() => {
+        setIsNoteLoading(false);
+      }, 320);
+      return () => clearTimeout(timer);
+    }
+  }, [isNoteSheetOpen]);
+
+  const openNoteHistorySheet = (data: any) => {
+    const matched = bibleVerses.find(v => String(v.verse) === String(data.verse));
+    if (matched) {
+      setSelectedVerses([matched.id]);
+    }
+    const currentSaved = savedVerses.find(
+      (sv: any) =>
+        (String(sv.book).toLowerCase() === String(data.book).toLowerCase() ||
+         String(sv.book).toLowerCase() === String(currentBook.id).toLowerCase()) &&
+        Number(sv.chapter) === Number(data.chapter) &&
+        Number(sv.verse) === Number(data.verse)
+    );
+    const freshNotes = currentSaved ? parseNotes(currentSaved.note) : (data.notes || []);
+    setNoteHistoryData({
+      ...data,
+      notes: freshNotes
+    });
+    setIsClosingNoteHistory(false);
+    setIsNoteHistoryOpen(true);
+    triggerHaptic();
+  };
+
+  const closeNoteHistorySheet = () => {
+    setIsClosingNoteHistory(true);
+    setTimeout(() => {
+      setIsNoteHistoryOpen(false);
+      setIsClosingNoteHistory(false);
+      setNoteHistoryData(null);
+      setSelectedVerses([]);
+    }, 200);
+  };
+
+  const handleEditNoteFromHistory = (noteItem: any) => {
+    setIsNoteHistoryOpen(false);
+    setIsClosingNoteHistory(false);
+    setEditingNoteId(noteItem.id);
+    setNoteInput(noteItem.text);
+    setNoteSheetData({
+      book: noteHistoryData.book,
+      chapter: noteHistoryData.chapter,
+      verse: noteHistoryData.verse,
+      content: noteHistoryData.content,
+      items: [{
+        verse: noteHistoryData.verse,
+        text: noteHistoryData.content
+      }],
+      note: noteItem.text
+    });
+    setIsClosingNoteSheet(false);
+    setIsNoteSheetOpen(true);
+    triggerHaptic();
+  };
+
+  const handleDeleteNoteFromHistory = (noteId: string) => {
+    if (!noteHistoryData) return;
+    const tg = (window as any).Telegram?.WebApp;
+    const executeDelete = () => {
+      triggerHaptic();
+      const remainingNotes = (noteHistoryData.notes || []).filter((n: any) => n.id !== noteId);
+      setNoteHistoryData((prev: any) => ({
+        ...prev,
+        notes: remainingNotes
+      }));
+      const finalNoteString = remainingNotes.length > 0 ? JSON.stringify(remainingNotes) : '';
+      saveVerseData(null, finalNoteString);
+      triggerAction('Catatan dihapus!');
+      if (remainingNotes.length === 0) {
+        closeNoteHistorySheet();
+      }
+    };
+    if (tg && typeof tg.showConfirm === 'function') {
+      tg.showConfirm('Hapus catatan ini?', (confirmed: boolean) => {
+        if (confirmed) executeDelete();
+      });
+    } else {
+      if (confirm('Hapus catatan ini?')) {
+        executeDelete();
+      }
+    }
+  };
+
   const closeNoteSheet = () => {
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
     }
-    setIsNoteSheetOpen(false);
-    setNoteSheetData(null);
+    setIsClosingNoteSheet(true);
+    setTimeout(() => {
+      setIsNoteSheetOpen(false);
+      setIsClosingNoteSheet(false);
+      setNoteSheetData(null);
+      setEditingNoteId(null);
+      setNoteInput('');
+      setIsNoteLoading(true);
+    }, 200);
   };
-
 
   useEffect(() => {
     const tg = (window as any).Telegram?.WebApp;
@@ -483,6 +587,8 @@ export default function App() {
         closeSelector();
       } else if (isNoteSheetOpen) {
         closeNoteSheet();
+      } else if (isNoteHistoryOpen) {
+        closeNoteHistorySheet();
       } else if (isLabelPaletteOpen) {
         setIsLabelPaletteOpen(false);
       } else if (isColorPaletteOpen) {
@@ -491,20 +597,18 @@ export default function App() {
         setSelectedVerses([]);
       }
     };
-
-    if (isCreateLabelOpen || isEditingCustomLabels || isSelectorOpen || isNoteSheetOpen || isLabelPaletteOpen || isColorPaletteOpen || selectedVerses.length > 0) {
+    if (isCreateLabelOpen || isEditingCustomLabels || isSelectorOpen || isNoteSheetOpen || isNoteHistoryOpen || isLabelPaletteOpen || isColorPaletteOpen || selectedVerses.length > 0) {
       tg.BackButton.show();
       tg.onEvent('backButtonClicked', handleBack);
     } else {
       tg.BackButton.hide();
       tg.offEvent('backButtonClicked', handleBack);
     }
-
     return () => {
       tg.BackButton.hide();
       tg.offEvent('backButtonClicked', handleBack);
     };
-  }, [isCreateLabelOpen, isSelectorOpen, isNoteSheetOpen, isLabelPaletteOpen, isColorPaletteOpen, selectedVerses.length]);
+  }, [isCreateLabelOpen, isEditingCustomLabels, isSelectorOpen, isNoteSheetOpen, isNoteHistoryOpen, isLabelPaletteOpen, isColorPaletteOpen, selectedVerses.length]);
 
   useEffect(() => {
     if (currentVersion.testamentScope === 'NT' && currentBook.test === 'PL') {
@@ -609,6 +713,8 @@ export default function App() {
   };
 
   const openNoteSheet = (explicitData?: any) => {
+    setEditingNoteId(null);
+    setNoteInput('');
     if (explicitData) {
       const items = explicitData.items || [{
         verse: explicitData.verse,
@@ -618,37 +724,33 @@ export default function App() {
         ...explicitData,
         items
       });
-      setNoteInput(explicitData.note || '');
+      setIsClosingNoteSheet(false);
       setIsNoteSheetOpen(true);
       return;
     }
+
     if (selectedVerses.length === 0) return;
-    let existingNote = '';
+
     const selectedVerseObjects = bibleVerses
       .filter(bv => selectedVerses.includes(bv.id))
       .sort((a, b) => a.verse - b.verse);
+
     const verseNumbers = selectedVerseObjects.map(v => v.verse).join(', ');
     const combinedContent = selectedVerseObjects.map(v => v.content.replace(/^[\u00B6\s]+/, '').replace(/<t\s*\/>/g, '').trim()).join(' ');
     const items = selectedVerseObjects.map(v => ({
       verse: v.verse,
       text: v.content.replace(/^[\u00B6\s]+/, '').trim()
     }));
-    if (selectedVerses.length === 1) {
-      const v = selectedVerseObjects[0];
-      if (v) {
-        const match = savedVerses.find(sv => String(sv.book) === String(currentBook.name) && String(sv.chapter) === String(currentChapter) && String(sv.verse) === String(v.verse));
-        if (match && match.note) existingNote = match.note;
-      }
-    }
+
     setNoteSheetData({
       book: currentBook.name,
       chapter: currentChapter,
       verse: verseNumbers,
       content: combinedContent,
       items: items,
-      note: existingNote
+      note: ''
     });
-    setNoteInput(existingNote);
+    setIsClosingNoteSheet(false);
     setIsNoteSheetOpen(true);
   };
 
@@ -705,19 +807,47 @@ export default function App() {
     }
 
     const newSavedVerses = [...savedVerses];
-
     for (const v of targetVerses) {
       const existingIndex = newSavedVerses.findIndex(
         sv => String(sv.book).toLowerCase() === String(targetBookName).toLowerCase() &&
               Number(sv.chapter) === Number(targetChapterNum) &&
               Number(sv.verse) === Number(v.verse)
       );
+
       const existing = existingIndex >= 0 ? newSavedVerses[existingIndex] : null;
       const finalColor = colorParam !== null ? colorParam : (existing?.color || '');
-      const finalNote = noteParam !== null ? noteParam : (existing?.note || '');
       const finalLabels = labelsParam !== null 
         ? (Array.isArray(labelsParam) ? labelsParam.join(', ') : labelsParam)
         : (existing?.labels || '');
+
+      let finalNote = existing?.note || '';
+      if (noteParam !== null) {
+        if (noteParam === '' || (noteParam.startsWith('[') && noteParam.endsWith(']'))) {
+          finalNote = noteParam;
+        } else {
+          const currentNotes = parseNotes(existing?.note);
+          const trimmedNote = noteParam.trim();
+          if (editingNoteId) {
+            if (trimmedNote) {
+              const updated = currentNotes.map(n => n.id === editingNoteId ? { ...n, text: trimmedNote } : n);
+              finalNote = JSON.stringify(updated);
+            } else {
+              const updated = currentNotes.filter(n => n.id !== editingNoteId);
+              finalNote = updated.length > 0 ? JSON.stringify(updated) : '';
+            }
+          } else {
+          if (trimmedNote) {
+            const newEntry = {
+              id: String(Date.now()),
+              text: trimmedNote,
+              version: String(currentVersion.shortName || 'AYT'),
+              createdAt: new Date().toISOString()
+            };
+            finalNote = JSON.stringify([...currentNotes, newEntry]);
+          }
+        }
+        }
+      }
 
       if (existing && existing.color === finalColor && existing.note === finalNote && existing.labels === finalLabels) {
         continue;
@@ -1070,6 +1200,7 @@ export default function App() {
             handleTouchStart={handleTouchStart}
             handleTouchEnd={handleTouchEnd}
             setViewingNote={openNoteSheet}
+            onOpenNoteHistory={openNoteHistorySheet}
             setViewingLabel={(data: any) => {
               const matched = bibleVerses.find(v => String(v.verse) === String(data.verse));
               if (matched) {
@@ -1088,7 +1219,6 @@ export default function App() {
             toggleTheme={toggleTheme}
           />
         )}
-
         {activeTab === 'discover' && (
           <DiscoverTab
             books={BIBLE_BOOKS}
@@ -1318,9 +1448,120 @@ export default function App() {
         </div>
       )}
 
+      {isNoteHistoryOpen && (
+        <div 
+          className={`fixed inset-0 z-[115] flex items-end justify-center bg-black/50 ${
+            isClosingNoteHistory ? 'backdrop-exit' : 'backdrop-enter'
+          }`}
+          onClick={closeNoteHistorySheet}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className={`w-full max-w-[430px] h-[76vh] max-h-[76vh] bg-white dark:bg-[#1E2A23] rounded-t-[1.75rem] border-t border-x border-gray-200 dark:border-[#2E3F34] flex flex-col overflow-hidden ${
+              isClosingNoteHistory ? 'sheet-exit' : 'sheet-enter'
+            }`}
+          >
+            <div className="w-10 h-1 bg-gray-300 dark:bg-[#2E3F34] rounded-full mx-auto mt-3 mb-2 shrink-0"></div>
+            <div className="px-5 py-2.5 flex items-center justify-between border-b border-gray-100 dark:border-[#2E3F34] shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 px-3 py-1 bg-[#f4f5f7] dark:bg-[#26372D] border border-gray-200 dark:border-[#2E3F34] rounded-full">
+                  <i className="ph-fill ph-book-open-text text-gray-900 dark:text-[#74C69D] text-xs"></i>
+                  <span className="text-[12px] font-extrabold text-gray-900 dark:text-[#E3ECE6] tracking-tight">
+                    {noteHistoryData?.book} {noteHistoryData?.chapter}:{noteHistoryData?.verse}
+                  </span>
+                </div>
+                <span className="text-[11px] font-bold text-gray-400 dark:text-[#8D9F94]">
+                  {noteHistoryData?.notes?.length || 0} Catatan
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={closeNoteHistorySheet}
+                className="w-8 h-8 rounded-full bg-gray-100 dark:bg-[#26372D] flex items-center justify-center text-gray-600 dark:text-[#8D9F94] transition active:scale-90"
+              >
+                <i className="ph-bold ph-x text-sm"></i>
+              </button>
+            </div>
+            <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-4 no-scrollbar">
+              {noteHistoryData?.content && (
+                <div className="bg-[#fafafa] dark:bg-[#17211C] border border-gray-200 dark:border-[#2E3F34] rounded-2xl p-4 space-y-2 select-text shrink-0">
+                  <div className="flex items-center gap-1.5 text-gray-900 dark:text-[#74C69D]">
+                    <i className="ph-bold ph-quotes text-xs"></i>
+                    <span className="text-[10.5px] font-extrabold uppercase tracking-wider">
+                      Teks Firman
+                    </span>
+                  </div>
+                  <p className="text-[13.5px] leading-relaxed text-gray-700 dark:text-[#E3ECE6] font-normal">
+                    "{noteHistoryData.content}"
+                  </p>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between px-0.5 pt-1">
+                <span className="text-[10.5px] font-extrabold uppercase tracking-widest text-gray-400 dark:text-[#8D9F94]">
+                  Daftar Catatan Anda
+                </span>
+              </div>
+
+              {noteHistoryData?.notes && noteHistoryData.notes.length > 0 ? (
+                <div className="space-y-3 pb-4">
+                  {noteHistoryData.notes.map((item: any, idx: number) => (
+                    <div
+                      key={item.id || idx}
+                      className="bg-[#fafafa] dark:bg-[#17211C] border border-gray-200 dark:border-[#2E3F34] rounded-2xl p-3.5 space-y-2.5 select-text"
+                    >
+                      <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#2E3F34] pb-2">
+                        <div className="flex items-center gap-1.5 text-gray-400 dark:text-[#8D9F94]">
+                          <i className="ph-bold ph-clock text-xs"></i>
+                          <span className="text-[10px] font-bold uppercase tracking-wider">
+                            Catatan #{idx + 1}
+                          </span>
+                          {item.version && (
+                            <span className="text-[9.5px] font-bold text-gray-700 dark:text-[#74C69D] bg-[#eceff2] dark:bg-[#25372C] px-1.5 py-0.5 rounded border border-gray-200/80 dark:border-[#354B3E]">
+                              {item.version}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleEditNoteFromHistory(item)}
+                            className="flex items-center gap-1 text-[11px] font-bold text-gray-800 dark:text-[#74C69D] px-2.5 py-1 rounded-lg bg-white dark:bg-[#26372D] border border-gray-200 dark:border-[#2E3F34] active:scale-95 transition-transform select-none"
+                          >
+                            <i className="ph-bold ph-pencil-simple text-xs"></i>
+                            <span>Ubah</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteNoteFromHistory(item.id)}
+                            className="w-7 h-7 flex items-center justify-center rounded-full text-gray-400 dark:text-[#8D9F94] hover:text-gray-900 dark:hover:text-white active:scale-80 transition-colors select-none"
+                            title="Hapus Catatan"
+                          >
+                            <i className="ph-bold ph-trash text-xs"></i>
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-[13.5px] leading-relaxed text-gray-800 dark:text-[#E3ECE6] font-normal whitespace-pre-wrap">
+                        {item.text}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-xs text-gray-400 dark:text-[#8D9F94]">Belum ada catatan untuk ayat ini.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {isNoteSheetOpen && (
         <div 
-          className="fixed inset-x-0 top-0 z-[110] flex flex-col bg-[#fafafa] dark:bg-[#17211C]"
+          className={`fixed inset-x-0 top-0 z-[110] flex flex-col bg-[#fafafa] dark:bg-[#17211C] ${
+            isClosingNoteSheet ? 'full-sheet-exit' : 'full-sheet-enter'
+          }`}
           style={{ height: 'var(--tg-viewport-height, 100dvh)' }}
         >
           <div 
@@ -1337,114 +1578,128 @@ export default function App() {
               <i className="ph-bold ph-caret-left text-lg"></i>
               <span>Batal</span>
             </button>
-
             <div className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#f4f5f7] dark:bg-[#26372D] border border-gray-200 dark:border-[#2E3F34] rounded-full">
               <i className="ph-fill ph-book-open-text text-gray-900 dark:text-[#74C69D] text-xs"></i>
               <span className="text-[12.5px] font-extrabold text-gray-900 dark:text-[#E3ECE6] tracking-tight">
                 {noteSheetData ? `${noteSheetData.book} ${noteSheetData.chapter}:${noteSheetData.verse}` : 'Catatan'}
               </span>
             </div>
-
             <button
               type="button"
               onClick={() => saveVerseData(null, noteInput)}
-              className="px-4 py-1.5 bg-gray-900 dark:bg-[#26372D] text-white dark:text-[#74C69D] border border-transparent dark:border-[#74C69D] rounded-full text-[13px] font-bold hover:bg-black active:scale-90 transition-transform select-none"
+              disabled={isNoteLoading || !noteInput.trim()}
+              className="px-4 py-1.5 bg-gray-900 dark:bg-[#26372D] text-white dark:text-[#74C69D] border border-transparent dark:border-[#74C69D] rounded-full text-[13px] font-bold disabled:opacity-35 disabled:pointer-events-none hover:bg-black active:scale-90 transition-transform select-none"
             >
               Selesai
             </button>
           </div>
-
           <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4 no-scrollbar">
-            {noteSheetData && (
-              <div className="bg-white dark:bg-[#1E2A23] border border-gray-200 dark:border-[#2E3F34] rounded-2xl p-4 shrink-0">
-                <div 
-                  onClick={() => {
-                    if (noteSheetData.items && noteSheetData.items.length > 1) {
-                      setIsNoteRefExpanded(prev => !prev);
-                    }
-                  }}
-                  className="flex items-center justify-between cursor-pointer select-none"
-                >
-                  <div className="flex items-center gap-1.5 text-gray-500 dark:text-[#8D9F94]">
-                    <i className="ph-bold ph-quotes text-xs"></i>
-                    <span className="text-[10px] font-extrabold uppercase tracking-wider">Ayat Referensi</span>
-                    {noteSheetData.items && noteSheetData.items.length > 1 && (
-                      <span className="text-[9.5px] font-bold bg-gray-100 dark:bg-[#26372D] text-gray-500 dark:text-[#74C69D] px-2 py-0.5 rounded-full ml-1">
-                        {noteSheetData.items.length} Ayat
-                      </span>
-                    )}
-                  </div>
-                  {noteSheetData.items && noteSheetData.items.length > 1 && (
-                    <div className="flex items-center gap-1 text-[11px] font-bold text-gray-400 dark:text-[#8D9F94]">
-                      <span>{isNoteRefExpanded ? 'Ciutkan' : 'Lihat'}</span>
-                      <i className={`ph-bold ph-caret-down ${isNoteRefExpanded ? 'rotate-180' : ''}`}></i>
-                    </div>
-                  )}
+            {isNoteLoading ? (
+              <div className="space-y-4 pt-1">
+                <div className="bg-white dark:bg-[#1E2A23] border border-gray-200 dark:border-[#2E3F34] rounded-2xl p-4 space-y-3">
+                  <div className="w-24 h-3 bg-gray-200 dark:bg-[#2A3B31] rounded-md animate-pulse"></div>
+                  <div className="w-full h-4 bg-gray-200 dark:bg-[#2A3B31] rounded-md animate-pulse"></div>
+                  <div className="w-3/4 h-4 bg-gray-200 dark:bg-[#2A3B31] rounded-md animate-pulse"></div>
                 </div>
-
-                <div className="pt-3 space-y-2">
-                  {noteSheetData.items && noteSheetData.items.length > 0 ? (
-                    <>
-                      <div className="flex items-start gap-2 leading-relaxed">
-                        <span className="text-[12px] font-bold text-gray-400 dark:text-[#74C69D] shrink-0 mt-0.5 select-none">
-                          {noteSheetData.items[0].verse}
-                        </span>
-                        <span className="text-[13.5px] text-gray-800 dark:text-[#E3ECE6] font-normal flex-1">
-                          {noteSheetData.items[0].text}
-                        </span>
-                      </div>
-                      {isNoteRefExpanded && noteSheetData.items.slice(1).map((item: any, idx: number) => (
-                        <div key={item.verse || idx} className="flex items-start gap-2 leading-relaxed">
-                          <span className="text-[12px] font-bold text-gray-400 dark:text-[#74C69D] shrink-0 mt-0.5 select-none">
-                            {item.verse}
+                <div className="bg-white dark:bg-[#1E2A23] border border-gray-200 dark:border-[#2E3F34] rounded-2xl p-4 space-y-3">
+                  <div className="flex justify-between items-center pb-2 border-b border-gray-100 dark:border-[#2E3F34]">
+                    <div className="w-20 h-3 bg-gray-200 dark:bg-[#2A3B31] rounded-md animate-pulse"></div>
+                    <div className="w-12 h-3 bg-gray-200 dark:bg-[#2A3B31] rounded-md animate-pulse"></div>
+                  </div>
+                  <div className="w-full h-36 bg-gray-100 dark:bg-[#17211C] rounded-xl animate-pulse"></div>
+                </div>
+              </div>
+            ) : (
+              <>
+                {noteSheetData && (
+                  <div className="bg-white dark:bg-[#1E2A23] border border-gray-200 dark:border-[#2E3F34] rounded-2xl p-4 shrink-0">
+                    <div 
+                      onClick={() => {
+                        if (noteSheetData.items && noteSheetData.items.length > 1) {
+                          setIsNoteRefExpanded(prev => !prev);
+                        }
+                      }}
+                      className="flex items-center justify-between cursor-pointer select-none"
+                    >
+                      <div className="flex items-center gap-1.5 text-gray-500 dark:text-[#8D9F94]">
+                        <i className="ph-bold ph-quotes text-xs"></i>
+                        <span className="text-[10px] font-extrabold uppercase tracking-wider">Ayat Referensi</span>
+                        {noteSheetData.items && noteSheetData.items.length > 1 && (
+                          <span className="text-[9.5px] font-bold bg-gray-100 dark:bg-[#26372D] text-gray-500 dark:text-[#74C69D] px-2 py-0.5 rounded-full ml-1">
+                            {noteSheetData.items.length} Ayat
                           </span>
+                        )}
+                      </div>
+                      {noteSheetData.items && noteSheetData.items.length > 1 && (
+                        <div className="flex items-center gap-1 text-[11px] font-bold text-gray-400 dark:text-[#8D9F94]">
+                          <span>{isNoteRefExpanded ? 'Ciutkan' : 'Lihat'}</span>
+                          <i className={`ph-bold ph-caret-down ${isNoteRefExpanded ? 'rotate-180' : ''}`}></i>
+                        </div>
+                      )}
+                    </div>
+                    <div className="pt-3 space-y-2">
+                      {noteSheetData.items && noteSheetData.items.length > 0 ? (
+                        <>
+                          <div className="flex items-start gap-2 leading-relaxed">
+                            <span className="text-[12px] font-bold text-gray-400 dark:text-[#74C69D] shrink-0 mt-0.5 select-none">
+                              {noteSheetData.items[0].verse}
+                            </span>
+                            <span className="text-[13.5px] text-gray-800 dark:text-[#E3ECE6] font-normal flex-1">
+                              {noteSheetData.items[0].text}
+                            </span>
+                          </div>
+                          {isNoteRefExpanded && noteSheetData.items.slice(1).map((item: any, idx: number) => (
+                            <div key={item.verse || idx} className="flex items-start gap-2 leading-relaxed">
+                              <span className="text-[12px] font-bold text-gray-400 dark:text-[#74C69D] shrink-0 mt-0.5 select-none">
+                                {item.verse}
+                              </span>
+                              <span className="text-[13.5px] text-gray-800 dark:text-[#E3ECE6] font-normal flex-1">
+                                {item.text}
+                              </span>
+                            </div>
+                          ))}
+                        </>
+                      ) : (
+                        <div className="flex items-start gap-2 leading-relaxed">
+                          {noteSheetData.verse && (
+                            <span className="text-[12px] font-bold text-gray-400 dark:text-[#74C69D] shrink-0 mt-0.5 select-none">
+                              {noteSheetData.verse}
+                            </span>
+                          )}
                           <span className="text-[13.5px] text-gray-800 dark:text-[#E3ECE6] font-normal flex-1">
-                            {item.text}
+                            {noteSheetData.content}
                           </span>
                         </div>
-                      ))}
-                    </>
-                  ) : (
-                    <div className="flex items-start gap-2 leading-relaxed">
-                      {noteSheetData.verse && (
-                        <span className="text-[12px] font-bold text-gray-400 dark:text-[#74C69D] shrink-0 mt-0.5 select-none">
-                          {noteSheetData.verse}
-                        </span>
                       )}
-                      <span className="text-[13.5px] text-gray-800 dark:text-[#E3ECE6] font-normal flex-1">
-                        {noteSheetData.content}
-                      </span>
+                      {!isNoteRefExpanded && noteSheetData.items && noteSheetData.items.length > 1 && (
+                        <div 
+                          onClick={() => setIsNoteRefExpanded(true)}
+                          className="text-[11px] font-bold text-gray-400 dark:text-[#8D9F94] hover:text-gray-700 dark:hover:text-[#E3ECE6] pl-5 cursor-pointer select-none pt-0.5"
+                        >
+                          +{noteSheetData.items.length - 1} ayat lainnya
+                        </div>
+                      )}
                     </div>
-                  )}
-
-                  {!isNoteRefExpanded && noteSheetData.items && noteSheetData.items.length > 1 && (
-                    <div 
-                      onClick={() => setIsNoteRefExpanded(true)}
-                      className="text-[11px] font-bold text-gray-400 dark:text-[#8D9F94] hover:text-gray-700 dark:hover:text-[#E3ECE6] pl-5 cursor-pointer select-none pt-0.5"
-                    >
-                      +{noteSheetData.items.length - 1} ayat lainnya (ketuk untuk membuka)
-                    </div>
-                  )}
+                  </div>
+                )}
+                <div className="bg-white dark:bg-[#1E2A23] border border-gray-200 dark:border-[#2E3F34] rounded-2xl p-4 space-y-3 shrink-0 focus-within:border-gray-400 dark:focus-within:border-[#74C69D]">
+                  <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#2E3F34] pb-2">
+                    <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 dark:text-[#8D9F94]">
+                      {editingNoteId ? 'Ubah Catatan' : 'Tulis Catatan'}
+                    </span>
+                    <span className="text-[10px] font-bold text-gray-400 dark:text-[#8D9F94]">
+                      {noteInput.length} karakter
+                    </span>
+                  </div>
+                  <textarea
+                    value={noteInput}
+                    onChange={(e) => setNoteInput(e.target.value)}
+                    placeholder="Ketik renungan, doa, atau yang lainnya disini..."
+                    className="w-full bg-transparent text-[14.5px] leading-relaxed text-gray-900 dark:text-[#E3ECE6] placeholder-gray-400 dark:placeholder-[#6C8074] focus:outline-none resize-none min-h-[170px]"
+                  />
                 </div>
-              </div>
+              </>
             )}
-
-            <div className="bg-white dark:bg-[#1E2A23] border border-gray-200 dark:border-[#2E3F34] rounded-2xl p-4 space-y-3 shrink-0 focus-within:border-gray-400 dark:focus-within:border-[#74C69D]">
-              <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#2E3F34] pb-2">
-                <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 dark:text-[#8D9F94]">
-                  Tulis Catatan
-                </span>
-                <span className="text-[10px] font-bold text-gray-400 dark:text-[#8D9F94]">
-                  {noteInput.length} karakter
-                </span>
-              </div>
-              <textarea
-                value={noteInput}
-                onChange={(e) => setNoteInput(e.target.value)}
-                placeholder="Ketik renungan, doa, atau yang lainnya disini..."
-                className="w-full bg-transparent text-[14.5px] leading-relaxed text-gray-900 dark:text-[#E3ECE6] placeholder-gray-400 dark:placeholder-[#6C8074] focus:outline-none resize-none min-h-[170px]"
-              />
-            </div>
           </div>
         </div>
       )}
@@ -1551,7 +1806,7 @@ export default function App() {
       <div
         onClick={(e) => e.stopPropagation()}
         className={`action-menu fixed left-1/2 -translate-x-1/2 w-[calc(100%-1.5rem)] max-w-[430px] bg-[#1a1c22]/95 backdrop-blur-2xl text-white rounded-[2rem] shadow-[0_20px_50px_-5px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.08)] p-2 z-50 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-          selectedVerses.length > 0 && !isNoteSheetOpen && !isCreateLabelOpen ? 'opacity-100 visible translate-y-0 scale-100' : 'opacity-0 invisible translate-y-8 scale-95 pointer-events-none'
+          selectedVerses.length > 0 && !isNoteSheetOpen && !isCreateLabelOpen && !isNoteHistoryOpen ? 'opacity-100 visible translate-y-0 scale-100' : 'opacity-0 invisible translate-y-8 scale-95 pointer-events-none'
         }`}
         style={{ bottom: 'calc(max(var(--tg-safe-bottom, 0px), env(safe-area-inset-bottom, 0px)) + 1.25rem)' }}
       >
@@ -1833,7 +2088,7 @@ export default function App() {
         )}
       </div>
 
-      <nav className={`absolute left-1/2 -translate-x-1/2 bg-white dark:bg-[#1E2A23]/95 backdrop-blur-xl border border-gray-200 dark:border-[#2E3F34] rounded-[2rem] px-5 py-3.5 flex justify-center gap-6 items-center z-40 w-max shadow-[0_10px_40px_-15px_rgba(0,0,0,0.15)] dark:shadow-[0_15px_40px_-10px_rgba(0,0,0,0.6)] transition-all duration-300 ${(selectedVerses.length > 0 || isNoteSheetOpen || isCreateLabelOpen || isSelectorOpen || !isNavVisible) ? 'opacity-0 invisible translate-y-24 pointer-events-none' : 'opacity-100 visible translate-y-0'}`} style={{ bottom: 'calc(max(var(--tg-safe-bottom, 0px), env(safe-area-inset-bottom, 0px)) + 1.5rem)' }}>
+      <nav className={`absolute left-1/2 -translate-x-1/2 bg-white dark:bg-[#1E2A23]/95 backdrop-blur-xl border border-gray-200 dark:border-[#2E3F34] rounded-[2rem] px-5 py-3.5 flex justify-center gap-6 items-center z-40 w-max shadow-[0_10px_40px_-15px_rgba(0,0,0,0.15)] dark:shadow-[0_15px_40px_-10px_rgba(0,0,0,0.6)] transition-all duration-300 ${(selectedVerses.length > 0 || isNoteSheetOpen || isCreateLabelOpen || isSelectorOpen || isNoteHistoryOpen || !isNavVisible) ? 'opacity-0 invisible translate-y-24 pointer-events-none' : 'opacity-100 visible translate-y-0'}`} style={{ bottom: 'calc(max(var(--tg-safe-bottom, 0px), env(safe-area-inset-bottom, 0px)) + 1.5rem)' }}>
         <button onClick={() => switchActiveTab('home')} className={`flex flex-col items-center gap-1 transition-transform duration-150 active:scale-90 active:opacity-70 select-none ${activeTab === 'home' ? 'text-gray-900 dark:text-[#74C69D] scale-110' : 'text-gray-400 dark:text-[#8D9F94] hover:text-gray-600 dark:hover:text-[#E3ECE6]'}`}><i className={`${activeTab === 'home' ? 'ph-fill' : 'ph'} ph-house text-2xl`}></i><span className="text-[9px] font-extrabold tracking-wider uppercase">Home</span></button>
         <button onClick={() => switchActiveTab('bible')} className={`flex flex-col items-center gap-1 transition-transform duration-150 active:scale-90 active:opacity-70 select-none ${activeTab === 'bible' ? 'text-gray-900 dark:text-[#74C69D] scale-110' : 'text-gray-400 dark:text-[#8D9F94] hover:text-gray-600 dark:hover:text-[#E3ECE6]'}`}><i className={`${activeTab === 'bible' ? 'ph-fill' : 'ph'} ph-book-open-text text-2xl`}></i><span className="text-[9px] font-extrabold tracking-wider uppercase">Alkitab</span></button>
         <button onClick={() => switchActiveTab('discover')} className={`flex flex-col items-center gap-1 transition-transform duration-150 active:scale-90 active:opacity-70 select-none ${activeTab === 'discover' ? 'text-gray-900 dark:text-[#74C69D] scale-110' : 'text-gray-400 dark:text-[#8D9F94] hover:text-gray-600 dark:hover:text-[#E3ECE6]'}`}><i className={`${activeTab === 'discover' ? 'ph-fill' : 'ph'} ph-compass text-2xl`}></i><span className="text-[9px] font-extrabold tracking-wider uppercase">Temukan</span></button>

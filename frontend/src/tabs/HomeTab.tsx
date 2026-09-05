@@ -1,15 +1,59 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 
 export default function HomeTab({ dailyVerse, communities, channels, news, userName, isAdmin, setActiveTab, isDark, toggleTheme, isLoadingHome }: any) {
-  const [visibleComms, setVisibleComms] = useState(5);
-  const [visibleNews, setVisibleNews] = useState(5);
-  const [isCopied, setIsCopied] = useState(false);
+  const [visibleComms, setVisibleComms] = useState<number>(5);
+  const [visibleNews, setVisibleNews] = useState<number>(5);
+  const [isCopied, setIsCopied] = useState<boolean>(false);
+
+  const cachedDailyVerse = useMemo(() => {
+    if (dailyVerse) {
+      try {
+        localStorage.setItem('alkitab_daily_verse_cache', JSON.stringify(dailyVerse));
+      } catch (e) {}
+      return dailyVerse;
+    }
+    try {
+      const saved = localStorage.getItem('alkitab_daily_verse_cache');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  }, [dailyVerse]);
+
+  const activeDailyVerse = dailyVerse || cachedDailyVerse;
+  const showDailyVerseSkeleton = isLoadingHome && !activeDailyVerse;
 
   const hour = new Date().getHours();
-  let greeting = 'Selamat pagi,';
-  if (hour >= 11 && hour < 15) greeting = 'Selamat siang,';
-  else if (hour >= 15 && hour < 18) greeting = 'Selamat sore,';
-  else if (hour >= 18 || hour < 4) greeting = 'Selamat malam,';
+
+  let greetingText = 'Selamat Pagi,';
+  let subGreetingText = 'Tetaplah dekat dengan Tuhan hari ini.';
+  let greetingEmoji = '✨';
+
+  if (hour >= 11 && hour < 15) {
+    greetingText = 'Selamat Siang,';
+    subGreetingText = 'Semoga harimu dipenuhi damai dan berkat Tuhan.';
+    greetingEmoji = '☀️';
+  } else if (hour >= 15 && hour < 18) {
+    greetingText = 'Selamat Sore,';
+    subGreetingText = 'Nikmati ketenangan hari dalam kasih karunia-Nya.';
+    greetingEmoji = '🌿';
+  } else if (hour >= 18 || hour < 4) {
+    greetingText = 'Selamat Malam,';
+    subGreetingText = 'Istirahatlah dalam damai sejahtera dari Tuhan.';
+    greetingEmoji = '🌙';
+  }
+
+  const LIGHT_HERO_IMAGE = 'https://wsrv.nl/?url=https://iili.io/ndanKqG.png&w=800&output=webp&q=40';
+  const DARK_HERO_IMAGE = 'https://wsrv.nl/?url=https://iili.io/ndaUtNs.png&w=800&output=webp&q=40';
+
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const target = e.currentTarget;
+    if (target.src.includes('wsrv.nl')) {
+      target.src = target.src.includes('ndanKqG') 
+        ? 'https://iili.io/ndanKqG.png' 
+        : 'https://iili.io/ndaUtNs.png';
+    }
+  };
 
   const getDomainName = (url: string) => {
     try {
@@ -25,10 +69,8 @@ export default function HomeTab({ dailyVerse, communities, channels, news, userN
       const formatted = dateInput.includes('T') ? dateInput : dateInput.replace(' ', 'T') + 'Z';
       const date = new Date(formatted);
       if (isNaN(date.getTime())) return 'Baru saja';
-
       const now = new Date();
       const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-
       if (diffInSeconds < 60) return 'Baru saja';
       const diffInMinutes = Math.floor(diffInSeconds / 60);
       if (diffInMinutes < 60) return `${diffInMinutes} mnt lalu`;
@@ -37,7 +79,6 @@ export default function HomeTab({ dailyVerse, communities, channels, news, userN
       const diffInDays = Math.floor(diffInHours / 24);
       if (diffInDays === 1) return 'Kemarin';
       if (diffInDays < 7) return `${diffInDays} hari lalu`;
-
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
       return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
     } catch (e) {
@@ -46,41 +87,124 @@ export default function HomeTab({ dailyVerse, communities, channels, news, userN
   };
 
   return (
-    <div className="animate-fadeIn px-5 space-y-8 pt-4">
-      
-      <div className="flex justify-between items-start px-1 mb-2">
-        <div className="flex-1">
-          <h1 className="text-[26px] font-bold tracking-tight text-gray-900 dark:text-[#E3ECE6] leading-tight">
-            <span id="greeting-time">{greeting}</span><br/>
-            <span className="text-gray-400 dark:text-[#8D9F94] font-medium text-[22px]">Saudara {userName}</span>
-          </h1>
+    <div className="animate-fadeIn px-5 space-y-6 pt-1">
+      <section className="relative -mx-5 -mt-1 px-5 pt-3 pb-0 overflow-hidden select-none min-h-[365px]" data-purpose="hero-greeting">
+        <div className="absolute inset-0 pointer-events-none select-none overflow-hidden">
+          <img
+            src={LIGHT_HERO_IMAGE}
+            alt="Hero Artwork Light"
+            decoding="async"
+            onError={handleImageError}
+            style={{
+              transform: 'translateY(-56px) scale(1.22)',
+              transformOrigin: 'top center'
+            }}
+            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ease-out ${
+              isDark ? 'opacity-0' : 'opacity-95'
+            }`}
+          />
+          <img
+            src={DARK_HERO_IMAGE}
+            alt="Hero Artwork Dark"
+            decoding="async"
+            onError={handleImageError}
+            style={{
+              transform: 'translateY(-56px) scale(1.22)',
+              transformOrigin: 'top center'
+            }}
+            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ease-out ${
+              isDark ? 'opacity-40' : 'opacity-0'
+            }`}
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#fafafa]/20 via-60% to-[#fafafa] dark:via-[#17211C]/35 dark:to-[#17211C]" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#fafafa]/90 via-[#fafafa]/40 to-transparent dark:from-[#17211C]/90 dark:via-[#17211C]/40 dark:to-transparent" />
         </div>
-        <div className="flex gap-2 items-center">
+
+        <div className="relative z-20 flex justify-end items-center gap-2 mb-3">
           <button
             onClick={toggleTheme}
-            className="w-10 h-10 bg-white dark:bg-[#1E2A23] text-gray-700 dark:text-[#74C69D] border border-gray-200 dark:border-[#2E3F34] rounded-full flex items-center justify-center active:scale-95 shrink-0 transition"
+            className="w-9 h-9 bg-white/80 dark:bg-[#1E2A23]/80 backdrop-blur-md text-gray-700 dark:text-[#74C69D] border border-gray-200/80 dark:border-[#2E3F34] rounded-full flex items-center justify-center active:scale-95 shrink-0 transition shadow-2xs"
             title={isDark ? "Ganti ke Tema Terang" : "Ganti ke Tema Gelap"}
           >
-            <i className={`ph-bold ${isDark ? 'ph-sun text-[#74C69D]' : 'ph-moon text-gray-700'} text-lg`}></i>
+            <i className={`ph-bold ${isDark ? 'ph-sun text-[#74C69D]' : 'ph-moon text-gray-700'} text-base`}></i>
           </button>
           {isAdmin && (
-            <button onClick={() => setActiveTab('admin')} className="w-10 h-10 bg-gray-900 dark:bg-[#1E2A23] text-white dark:text-[#E3ECE6] rounded-full flex items-center justify-center border border-transparent dark:border-[#2E3F34] relative active:scale-95 shrink-0 transition">
-              <i className="ph-bold ph-shield-star"></i>
+            <button
+              onClick={() => setActiveTab('admin')}
+              className="w-9 h-9 bg-gray-900/90 dark:bg-[#1E2A23]/80 backdrop-blur-md text-white dark:text-[#E3ECE6] rounded-full flex items-center justify-center border border-transparent dark:border-[#2E3F34] relative active:scale-95 shrink-0 transition shadow-2xs"
+            >
+              <i className="ph-bold ph-shield-star text-base"></i>
             </button>
           )}
         </div>
-      </div>
+
+        <div className="relative z-10 max-w-[280px] mb-5">
+          <h1 className="text-[27px] sm:text-[28px] leading-[1.18] font-extrabold tracking-tight text-gray-950 dark:text-[#E3ECE6]">
+            <span id="greeting-time">{greetingText}</span>
+            <br />
+            <span className="text-gray-500 dark:text-[#8D9F94] font-semibold text-[22px]">
+              Saudara {userName}
+            </span>
+          </h1>
+          <p className="text-xs text-gray-600 dark:text-[#8D9F94] font-medium mt-2 flex items-center flex-wrap">
+            <span>{subGreetingText}</span>
+            <span className="ml-1 text-amber-500 text-sm">{greetingEmoji}</span>
+          </p>
+        </div>
+
+        <div className="relative z-10">
+          {showDailyVerseSkeleton ? (
+            <div className="w-full h-[185px] rounded-2xl bg-white/60 dark:bg-[#1E2A23]/60 backdrop-blur-sm border border-gray-200/60 dark:border-[#2E3F34]/60 animate-pulse p-5 flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="w-28 h-5 bg-gray-300 dark:bg-[#2A3B31] rounded-full"></div>
+                <div className="w-full h-4 bg-gray-300 dark:bg-[#2A3B31] rounded-md"></div>
+                <div className="w-3/4 h-4 bg-gray-300 dark:bg-[#2A3B31] rounded-md"></div>
+              </div>
+              <div className="pt-3 border-t border-gray-200/40 dark:border-[#28382F] flex justify-between items-center">
+                <div className="w-24 h-4 bg-gray-300 dark:bg-[#2A3B31] rounded-md"></div>
+                <div className="w-16 h-5 bg-gray-300 dark:bg-[#2A3B31] rounded-md"></div>
+              </div>
+            </div>
+          ) : (
+            <article className="bg-white/80 dark:bg-[#1E2A23]/80 backdrop-blur-md rounded-2xl p-5 border border-gray-200/80 dark:border-[#2E3F34] shadow-xs flex flex-col justify-between relative select-none">
+              <div className="flex items-center mb-3.5">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/[0.04] dark:bg-[#26372D] text-black dark:text-[#74C69D] border border-black/[0.04] dark:border-[#354B3E]">
+                  <i className="ph-bold ph-book-open text-xs"></i>
+                  <span className="text-[11px] font-bold uppercase tracking-wider">Ayat Hari Ini</span>
+                </div>
+              </div>
+              <blockquote className="my-1">
+                <p className="text-[15.5px] sm:text-[16.5px] font-normal text-black dark:text-[#E3ECE6] leading-relaxed tracking-normal">
+                  "{activeDailyVerse ? activeDailyVerse.verse_text : 'Belum diatur'}"
+                </p>
+              </blockquote>
+              <div className="mt-4 pt-3 border-t border-gray-200/70 dark:border-[#28382F] flex items-center justify-between">
+                <span className="text-[13px] font-bold text-black dark:text-[#74C69D] tracking-tight">
+                  {activeDailyVerse?.verse_reference || 'Yohanes 3:16'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!activeDailyVerse) return;
+                    const textToCopy = `"${activeDailyVerse.verse_text}" — ${activeDailyVerse.verse_reference}`;
+                    navigator.clipboard?.writeText(textToCopy);
+                    setIsCopied(true);
+                    setTimeout(() => setIsCopied(false), 2000);
+                  }}
+                  className="flex items-center gap-1.5 text-[12px] font-semibold text-black dark:text-[#74C69D] hover:opacity-75 py-1 px-2.5 rounded-md active:scale-95 transition-all"
+                >
+                  <i className={`ph-bold ${isCopied ? 'ph-check' : 'ph-share-network'} text-[15px]`}></i>
+                  <span>{isCopied ? 'Disalin' : 'Bagikan'}</span>
+                </button>
+              </div>
+            </article>
+          )}
+        </div>
+      </section>
 
       {isLoadingHome ? (
         <div className="space-y-6 animate-pulse">
-          <div className="w-full min-h-[170px] rounded-2xl bg-gray-200 dark:bg-[#1E2A23] border border-transparent dark:border-[#2E3F34]"></div>
-          
-          <div className="p-4 rounded-2xl bg-gray-200 dark:bg-[#1E2A23] border border-transparent dark:border-[#2E3F34] space-y-2.5">
-            <div className="w-24 h-3 bg-gray-300 dark:bg-[#2A3B31] rounded-md"></div>
-            <div className="w-full h-4 bg-gray-300 dark:bg-[#2A3B31] rounded-md"></div>
-            <div className="w-2/3 h-4 bg-gray-300 dark:bg-[#2A3B31] rounded-md"></div>
-          </div>
-
+          <div className="w-full aspect-[16/9] sm:aspect-[2/1] rounded-2xl bg-gray-200 dark:bg-[#1E2A23] border border-transparent dark:border-[#2E3F34]"></div>
           <div className="space-y-3">
             <div className="w-28 h-5 bg-gray-200 dark:bg-[#1E2A23] rounded-md px-1"></div>
             <div className="space-y-2.5">
@@ -98,45 +222,9 @@ export default function HomeTab({ dailyVerse, communities, channels, news, userN
         </div>
       ) : (
         <>
-          <div className="space-y-5">
-          <article className="bg-white dark:bg-[#1E2A23] rounded-2xl p-5 border border-gray-200 dark:border-[#2E3F34] flex flex-col justify-between relative select-none">
-            <div className="flex items-center mb-3.5">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gray-100 dark:bg-[#26372D] text-black dark:text-[#74C69D] border border-gray-200 dark:border-[#354B3E]">
-                <i className="ph-bold ph-book-open text-xs"></i>
-                <span className="text-[11px] font-bold uppercase tracking-wider">Ayat Hari Ini</span>
-              </div>
-            </div>
-
-            <blockquote className="my-1">
-              <p className="text-[15.5px] sm:text-[16.5px] font-normal text-black dark:text-[#E3ECE6] leading-relaxed tracking-normal">
-                "{dailyVerse ? dailyVerse.verse_text : 'Belum diatur'}"
-              </p>
-            </blockquote>
-
-            <div className="mt-4 pt-3 border-t border-gray-200 dark:border-[#28382F] flex items-center justify-between">
-              <span className="text-[13px] font-bold text-black dark:text-[#74C69D] tracking-tight">
-                {dailyVerse?.verse_reference || 'Yohanes 3:16'}
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!dailyVerse) return;
-                  const textToCopy = `"${dailyVerse.verse_text}" — ${dailyVerse.verse_reference}`;
-                  navigator.clipboard?.writeText(textToCopy);
-                  setIsCopied(true);
-                  setTimeout(() => setIsCopied(false), 2000);
-                }}
-                className="flex items-center gap-1.5 text-[12px] font-semibold text-black dark:text-[#74C69D] hover:opacity-75 py-1 px-2.5 rounded-md active:scale-95 transition-all"
-              >
-                <i className={`ph-bold ${isCopied ? 'ph-check' : 'ph-share-network'} text-[15px]`}></i>
-                <span>{isCopied ? 'Disalin' : 'Bagikan'}</span>
-              </button>
-            </div>
-          </article>
-
           <div
             onClick={() => setActiveTab('bible')}
-            className="bg-white dark:bg-[#1E2A23] rounded-2xl border border-gray-200 dark:border-[#2E3F34] p-4 flex flex-col gap-3.5 cursor-pointer active:scale-[0.99] transition-all select-none group"
+            className="!mt-3 bg-white dark:bg-[#1E2A23] rounded-2xl border border-gray-200 dark:border-[#2E3F34] p-4 flex flex-col gap-3.5 cursor-pointer active:scale-[0.99] transition-all select-none group"
           >
             <div className="relative w-full aspect-[16/9] sm:aspect-[2/1] rounded-xl overflow-hidden bg-gray-100 dark:bg-[#17211C]">
               <img
@@ -154,7 +242,6 @@ export default function HomeTab({ dailyVerse, communities, channels, news, userN
                 }`}
               />
             </div>
-
             <div className="flex items-center justify-between gap-3 px-1">
               <h2 className="text-[14px] sm:text-[15px] font-bold text-black dark:text-[#E3ECE6] tracking-tight leading-snug">
                 Yuk, luangkan waktu sejenak membaca Alkitab hari ini.
@@ -165,7 +252,6 @@ export default function HomeTab({ dailyVerse, communities, channels, news, userN
               </div>
             </div>
           </div>
-        </div>
 
           <div className="space-y-3">
             <div className="flex items-center justify-between px-1">
